@@ -68,7 +68,6 @@ export default function AnnouncementsPage() {
       
       const docRef = await addDoc(collection(db, "announcements"), newAnnouncement);
       
-      // ✅ Activity Log এ সেভ করা হচ্ছে
       await addDoc(collection(db, "activityLogs"), {
         userName: "Admin User",
         action: "Broadcasted Announcement",
@@ -98,7 +97,6 @@ export default function AnnouncementsPage() {
     try {
       await deleteDoc(doc(db, "announcements", id));
       
-      // ✅ Activity Log এ সেভ করা হচ্ছে
       await addDoc(collection(db, "activityLogs"), {
         userName: "Admin User",
         action: "Deleted Announcement",
@@ -118,26 +116,26 @@ export default function AnnouncementsPage() {
 
   const getTypeStyles = (type: string) => {
     switch (type) {
-      case "warning": return "bg-amber-100 text-amber-700 border-amber-200";
-      case "success": return "bg-emerald-100 text-emerald-700 border-emerald-200";
-      default: return "bg-blue-100 text-blue-700 border-blue-200";
+      case "warning": return "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800";
+      case "success": return "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800";
+      default: return "bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800";
     }
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-y-auto bg-[#f8fafc] p-4 md:p-6 space-y-6 relative">
+    <div className="flex-1 flex flex-col overflow-y-auto bg-[#f8fafc] dark:bg-slate-950 p-4 md:p-6 space-y-6 relative transition-colors">
       
-      <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-colors">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Announcements 📢</h2>
-          <p className="text-sm text-slate-500 mt-1">
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Announcements 📢</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Broadcast notifications and notices to all users.
           </p>
         </div>
         
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm transition-colors flex items-center gap-2"
+          className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-bold rounded-xl shadow-sm transition-colors flex items-center gap-2"
         >
           Create Announcement
         </button>
@@ -145,25 +143,25 @@ export default function AnnouncementsPage() {
 
       {loading ? (
         <div className="flex justify-center items-center py-20">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 dark:border-blue-400"></div>
         </div>
       ) : announcements.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center text-slate-400 font-medium shadow-sm">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-12 text-center text-slate-400 dark:text-slate-500 font-medium shadow-sm transition-colors">
           No active announcements. Click "Create Announcement" to broadcast one.
         </div>
       ) : (
         <div className="flex flex-col gap-4">
           {announcements.map((announcement) => (
-            <div key={announcement.id} className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex flex-col md:flex-row gap-4 items-start md:items-center justify-between hover:shadow-md transition">
+            <div key={announcement.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex flex-col md:flex-row gap-4 items-start md:items-center justify-between hover:shadow-md transition transition-colors">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
-                  <h3 className="text-lg font-bold text-slate-800">{announcement.title}</h3>
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">{announcement.title}</h3>
                   <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getTypeStyles(announcement.type)}`}>
                     {announcement.type}
                   </span>
                 </div>
-                <p className="text-sm text-slate-600 whitespace-pre-wrap">{announcement.message}</p>
-                <div className="text-[11px] font-semibold text-slate-400 mt-3 flex items-center gap-1">
+                <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{announcement.message}</p>
+                <div className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mt-3 flex items-center gap-1">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                   Broadcasted: {new Date(announcement.createdAt).toLocaleString()}
                 </div>
@@ -172,7 +170,7 @@ export default function AnnouncementsPage() {
               <button 
                 onClick={() => handleDelete(announcement.id)}
                 disabled={actionLoadingId === announcement.id}
-                className="px-4 py-2 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100 whitespace-nowrap"
+                className="px-4 py-2 text-sm font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-lg transition-colors border border-red-100 dark:border-red-900/50 whitespace-nowrap"
               >
                 {actionLoadingId === announcement.id ? "Deleting..." : "Delete Notice"}
               </button>
@@ -182,14 +180,14 @@ export default function AnnouncementsPage() {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl relative overflow-hidden">
+        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl w-full max-w-lg shadow-2xl relative overflow-hidden transition-colors">
             
-            <div className="bg-blue-50 px-6 py-4 border-b border-blue-100 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-blue-800">New Broadcast Announcement</h3>
+            <div className="bg-blue-50 dark:bg-blue-950/40 px-6 py-4 border-b border-blue-100 dark:border-blue-900/50 flex justify-between items-center transition-colors">
+              <h3 className="text-lg font-bold text-blue-800 dark:text-blue-300">New Broadcast Announcement</h3>
               <button 
                 onClick={() => setIsModalOpen(false)} 
-                className="text-blue-600 hover:bg-blue-200 bg-blue-100 p-1.5 rounded-full transition"
+                className="text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900 bg-blue-100 dark:bg-blue-950/80 p-1.5 rounded-full transition"
               >
                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
@@ -197,23 +195,23 @@ export default function AnnouncementsPage() {
 
             <form onSubmit={handleCreateAnnouncement} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Announcement Title <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Announcement Title <span className="text-red-500">*</span></label>
                 <input 
                   type="text" 
                   required
                   placeholder="e.g., Scheduled Maintenance"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Notice Type</label>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Notice Type</label>
                 <select 
                   value={newType}
                   onChange={(e) => setNewType(e.target.value as any)}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 cursor-pointer"
                 >
                   <option value="info">General Info (Blue)</option>
                   <option value="success">Good News / Update (Green)</option>
@@ -222,14 +220,14 @@ export default function AnnouncementsPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Message Details <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Message Details <span className="text-red-500">*</span></label>
                 <textarea 
                   required
                   rows={4}
                   placeholder="Write the full announcement message here..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none custom-scrollbar"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 resize-none custom-scrollbar"
                 />
               </div>
 
@@ -237,14 +235,14 @@ export default function AnnouncementsPage() {
                 <button 
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2.5 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                  className="px-5 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition disabled:opacity-70 flex items-center gap-2"
+                  className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 rounded-xl transition disabled:opacity-70 flex items-center gap-2"
                 >
                   {isSubmitting ? (
                     <>

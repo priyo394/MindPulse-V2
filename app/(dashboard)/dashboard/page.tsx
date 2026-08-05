@@ -9,11 +9,11 @@ import Link from "next/link";
 
 const getMoodData = (mood?: string) => {
   switch (mood) {
-    case "Great": return { icon: "😄", bg: "bg-green-100 text-green-700" };
-    case "Good": return { icon: "🙂", bg: "bg-blue-100 text-blue-700" };
-    case "Okay": return { icon: "😐", bg: "bg-yellow-100 text-yellow-700" };
-    case "Low": return { icon: "😔", bg: "bg-red-100 text-red-700" };
-    default: return { icon: "😶", bg: "bg-slate-100 text-slate-500" };
+    case "Great": return { icon: "😄", bg: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" };
+    case "Good": return { icon: "🙂", bg: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400" };
+    case "Okay": return { icon: "😐", bg: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400" };
+    case "Low": return { icon: "😔", bg: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" };
+    default: return { icon: "😶", bg: "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400" };
   }
 };
 
@@ -25,7 +25,7 @@ export default function Dashboard() {
   const [recentJournals, setRecentJournals] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   
-  // ডাইনামিক ওয়েলনেস টিপসের জন্য নতুন স্টেট
+  // ডাইনামিক ওয়েলনেস টিপসের জন্য নতুন স্টেট
   const [wellnessTips, setWellnessTips] = useState<any[]>([]);
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
 
@@ -73,7 +73,7 @@ export default function Dashboard() {
         setRecentJournals(jData);
       });
 
-      // ৩. অ্যাডমিন প্যানেল থেকে Wellness Tips ফেচ করা (আপনার ডাটাবেস নাম যদি "wellness_tips" হয়, তবে সেটি দিন)
+      // ৩. অ্যাডমিন প্যানেল থেকে Wellness Tips ফেচ করা
       const tipsQuery = query(collection(db, "wellnessTips")); 
       const unsubscribeTips = onSnapshot(tipsQuery, (snapshot) => {
         const tipsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -95,7 +95,7 @@ export default function Dashboard() {
     if (wellnessTips.length > 1) {
       const interval = setInterval(() => {
         setCurrentTipIndex((prevIndex) => (prevIndex + 1) % wellnessTips.length);
-      }, 7000); // 7000 ms = 7 seconds
+      }, 7000);
       return () => clearInterval(interval);
     }
   }, [wellnessTips]);
@@ -121,7 +121,7 @@ export default function Dashboard() {
   if (!user) return null;
 
   return (
-    <div className="p-4 md:p-8 pt-4">
+    <div className="p-4 md:p-8 pt-4 transition-colors duration-200">
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard 
@@ -137,7 +137,7 @@ export default function Dashboard() {
           value={todayCheckIn ? `${todayCheckIn.stressLevel}/10` : "No data yet"}
           subtitle={todayCheckIn ? "Updated today" : "+ Add your stress"}
           icon="🌡️" 
-          iconBg="bg-red-50 text-red-600"
+          iconBg="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
           onClick={() => !todayCheckIn && setIsModalOpen(true)}
         />
         <StatCard 
@@ -145,7 +145,7 @@ export default function Dashboard() {
           value={todayCheckIn ? `${todayCheckIn.sleepHours}h` : "No data yet"}
           subtitle={todayCheckIn ? "Updated today" : "+ Add your sleep"}
           icon="🛌" 
-          iconBg="bg-blue-50 text-blue-600"
+          iconBg="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
           onClick={() => !todayCheckIn && setIsModalOpen(true)}
         />
         <StatCard 
@@ -153,29 +153,29 @@ export default function Dashboard() {
           value={wellnessScore !== null ? wellnessScore.toString() : "--"}
           subtitle={todayCheckIn ? "✅ Complete check-in" : "Complete check-in"}
           icon="⭐" 
-          iconBg="bg-amber-100 text-amber-600"
+          iconBg="bg-amber-100 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400"
           onClick={() => !todayCheckIn && setIsModalOpen(true)}
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between transition-colors">
           <div>
-            <div className="flex items-center gap-2 mb-4 text-blue-600">
+            <div className="flex items-center gap-2 mb-4 text-blue-600 dark:text-blue-400">
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
               <h3 className="font-bold text-lg">Daily Check-In Status</h3>
             </div>
-            <h2 className="text-xl font-bold text-slate-800 mb-2">
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">
               {todayCheckIn ? "Check-in complete! 🎉" : "No check-in today"}
             </h2>
-            <p className="text-slate-500 text-sm mb-6">
+            <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
               {todayCheckIn ? "Great job! You have successfully logged your wellness data today." : "Start your daily check-in to track your wellness."}
             </p>
           </div>
           <div>
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition"
+              className="bg-blue-600 dark:bg-blue-500 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 dark:hover:bg-blue-600 transition"
             >
               {todayCheckIn ? "Update Check-In" : "Start Check-In"}
             </button>
@@ -183,31 +183,31 @@ export default function Dashboard() {
         </div>
 
         {/* Dynamic Auto-Sliding Wellness Tips */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between transition-colors">
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-lg text-slate-800">Daily Wellness Tips</h3>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-green-600 bg-green-50 px-2.py-0.5 rounded-md border border-green-100 flex items-center gap-1.5 shadow-sm">
-                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Live
+              <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">Daily Wellness Tips</h3>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded-md border border-green-100 dark:border-green-800/50 flex items-center gap-1.5 shadow-sm">
+                <span className="w-1.5 h-1.5 bg-green-500 dark:bg-green-400 rounded-full animate-pulse"></span> Live
               </span>
             </div>
             
-            <div className="bg-green-50/50 rounded-xl p-5 border border-green-100 flex gap-4 min-h-[140px] items-center relative overflow-hidden group">
-              <span className="text-green-600 text-3xl shrink-0 transition-transform duration-300 group-hover:scale-110">
+            <div className="bg-green-50/50 dark:bg-green-900/10 rounded-xl p-5 border border-green-100 dark:border-green-900/30 flex gap-4 min-h-[140px] items-center relative overflow-hidden group">
+              <span className="text-green-600 dark:text-green-400 text-3xl shrink-0 transition-transform duration-300 group-hover:scale-110">
                 {wellnessTips.length > 0 && wellnessTips[currentTipIndex]?.icon ? wellnessTips[currentTipIndex].icon : "💡"}
               </span>
               
               <div className="flex-1">
                 {wellnessTips.length > 0 ? (
                   <div key={currentTipIndex} className="animate-pulse-once">
-                    <h4 className="font-bold text-slate-800 text-base mb-1.5">{wellnessTips[currentTipIndex].title}</h4>
-                    <p className="text-slate-600 text-sm leading-relaxed font-medium">
+                    <h4 className="font-bold text-slate-800 dark:text-slate-100 text-base mb-1.5">{wellnessTips[currentTipIndex].title}</h4>
+                    <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed font-medium">
                       {wellnessTips[currentTipIndex].content || wellnessTips[currentTipIndex].description}
                     </p>
                   </div>
                 ) : (
-                  <p className="text-slate-500 text-sm leading-relaxed font-medium flex items-center gap-2">
-                    <svg className="animate-spin h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed font-medium flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     Loading tips...
                   </p>
                 )}
@@ -221,7 +221,7 @@ export default function Dashboard() {
                   <button 
                     key={idx} 
                     onClick={() => setCurrentTipIndex(idx)}
-                    className={`h-1.5 rounded-full transition-all duration-300 ${currentTipIndex === idx ? "w-6 bg-green-500" : "w-2 bg-green-200 hover:bg-green-300"}`}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${currentTipIndex === idx ? "w-6 bg-green-500 dark:bg-green-400" : "w-2 bg-green-200 dark:bg-green-900/50 hover:bg-green-300 dark:hover:bg-green-800/80"}`}
                   ></button>
                 ))}
               </div>
@@ -232,60 +232,60 @@ export default function Dashboard() {
 
       {/* Third Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
           <div className="flex items-center justify-between mb-10">
-            <div className="flex items-center gap-2 text-slate-700">
+            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
               <h3 className="font-bold text-lg">Mood Trend</h3>
             </div>
-            <span className="text-xs font-semibold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">Last 7 Days</span>
+            <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 px-2.5 py-1 rounded-md border border-slate-100 dark:border-slate-700">Last 7 Days</span>
           </div>
-          <div className="flex flex-col items-center justify-center py-6 text-slate-400">
-            <svg className="w-12 h-12 mb-3 text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 4h2v5l-1-.75L9 9V4zm9 16H6V4h2v7l2-1.5 2 1.5V4h5v16z"/></svg>
-            <p className="font-semibold text-slate-600 mb-1">No mood data yet</p>
+          <div className="flex flex-col items-center justify-center py-6 text-slate-400 dark:text-slate-500">
+            <svg className="w-12 h-12 mb-3 text-slate-300 dark:text-slate-600" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 4h2v5l-1-.75L9 9V4zm9 16H6V4h2v7l2-1.5 2 1.5V4h5v16z"/></svg>
+            <p className="font-semibold text-slate-600 dark:text-slate-400 mb-1">No mood data yet</p>
             <p className="text-sm">Start checking in daily to see your mood trend.</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
           <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-2 text-slate-700">
+            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
               <h3 className="font-bold text-lg">Weekly Overview</h3>
             </div>
-            <Link href="/reports" className="text-sm text-blue-600 font-semibold flex items-center gap-1 hover:underline">
+            <Link href="/reports" className="text-sm text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1 hover:underline">
               View Report <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
             </Link>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="border border-slate-100 rounded-xl p-4 flex gap-3 items-start">
-              <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-lg">🙂</div>
+            <div className="border border-slate-100 dark:border-slate-700 rounded-xl p-4 flex gap-3 items-start">
+              <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-lg">🙂</div>
               <div>
-                <p className="text-xs text-slate-500 font-medium">Avg Mood</p>
-                <p className="font-bold text-slate-800">No data</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Avg Mood</p>
+                <p className="font-bold text-slate-800 dark:text-slate-100">No data</p>
               </div>
             </div>
-            <div className="border border-slate-100 rounded-xl p-4 flex gap-3 items-start">
-              <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center text-lg">🌡️</div>
+            <div className="border border-slate-100 dark:border-slate-700 rounded-xl p-4 flex gap-3 items-start">
+              <div className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-900/30 flex items-center justify-center text-lg">🌡️</div>
               <div>
-                <p className="text-xs text-slate-500 font-medium">Avg Stress</p>
-                <p className="font-bold text-slate-800">No data</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Avg Stress</p>
+                <p className="font-bold text-slate-800 dark:text-slate-100">No data</p>
               </div>
             </div>
-            <div className="border border-slate-100 rounded-xl p-4 flex gap-3 items-start">
-              <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-lg">🛌</div>
+            <div className="border border-slate-100 dark:border-slate-700 rounded-xl p-4 flex gap-3 items-start">
+              <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-lg">🛌</div>
               <div>
-                <p className="text-xs text-slate-500 font-medium">Avg Sleep</p>
-                <p className="font-bold text-slate-800">No data</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Avg Sleep</p>
+                <p className="font-bold text-slate-800 dark:text-slate-100">No data</p>
               </div>
             </div>
-            <div className="border border-slate-100 rounded-xl p-4 flex gap-3 items-start">
-              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+            <div className="border border-slate-100 dark:border-slate-700 rounded-xl p-4 flex gap-3 items-start">
+              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
               </div>
               <div>
-                <p className="text-xs text-slate-500 font-medium">Check-ins</p>
-                <p className="font-bold text-slate-800">0/7</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Check-ins</p>
+                <p className="font-bold text-slate-800 dark:text-slate-100">0/7</p>
               </div>
             </div>
           </div>
@@ -294,24 +294,24 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
         {/* Recent Journal Entries */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col">
-          <div className="flex items-center gap-2 mb-6 text-slate-800">
-            <svg className="w-5 h-5 text-slate-700" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col transition-colors">
+          <div className="flex items-center gap-2 mb-6 text-slate-800 dark:text-slate-100">
+            <svg className="w-5 h-5 text-slate-700 dark:text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
             <h3 className="font-bold text-lg">Recent Journal Entries</h3>
           </div>
           
           <div className="flex-1 flex flex-col items-center justify-center py-6 text-center">
             {recentJournals.length === 0 ? (
               <>
-                <p className="font-bold text-slate-800 mb-1">No journal entries yet</p>
-                <p className="text-sm text-slate-500 mb-6">Start writing your thoughts and feelings.</p>
+                <p className="font-bold text-slate-800 dark:text-slate-200 mb-1">No journal entries yet</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Start writing your thoughts and feelings.</p>
               </>
             ) : (
               <div className="w-full space-y-3 mb-6 text-left">
                 {recentJournals.map(journal => (
-                  <div key={journal.id} className="p-3 border border-slate-100 rounded-lg bg-slate-50">
-                    <p className="font-semibold text-sm text-slate-800 line-clamp-1">{journal.title}</p>
-                    <p className="text-xs text-slate-500 line-clamp-1">{journal.content}</p>
+                  <div key={journal.id} className="p-3 border border-slate-100 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                    <p className="font-semibold text-sm text-slate-800 dark:text-slate-200 line-clamp-1">{journal.title}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">{journal.content}</p>
                   </div>
                 ))}
               </div>
@@ -319,7 +319,7 @@ export default function Dashboard() {
             
             <Link 
               href="/journal"
-              className="inline-flex items-center gap-2 border-2 border-blue-100 text-blue-600 hover:bg-blue-50 px-6 py-2 rounded-lg font-semibold text-sm transition"
+              className="inline-flex items-center gap-2 border-2 border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-6 py-2 rounded-lg font-semibold text-sm transition"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
               Write Journal
@@ -328,32 +328,32 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-          <div className="flex items-center gap-2 mb-6 text-slate-800">
-            <svg className="w-5 h-5 text-slate-700" fill="currentColor" viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
+          <div className="flex items-center gap-2 mb-6 text-slate-800 dark:text-slate-100">
+            <svg className="w-5 h-5 text-slate-700 dark:text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
             <h3 className="font-bold text-lg">Quick Actions</h3>
           </div>
           
           <div className="grid grid-cols-2 gap-3">
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="flex flex-col items-center justify-center p-4 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition"
+              className="flex flex-col items-center justify-center p-4 rounded-xl bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition"
             >
               <svg className="w-6 h-6 mb-2" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
               <span className="font-semibold text-sm">Daily Check-In</span>
             </button>
             
-            <Link href="/chat" className="flex flex-col items-center justify-center p-4 rounded-xl bg-teal-50 text-teal-600 border border-teal-100 hover:bg-teal-100 transition">
+            <Link href="/chat" className="flex flex-col items-center justify-center p-4 rounded-xl bg-teal-50 dark:bg-teal-900/10 text-teal-600 dark:text-teal-400 border border-teal-100 dark:border-teal-900/30 hover:bg-teal-100 dark:hover:bg-teal-900/30 transition">
               <svg className="w-6 h-6 mb-2" fill="currentColor" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
               <span className="font-semibold text-sm">AI Assistant</span>
             </Link>
 
-            <Link href="/reports" className="flex flex-col items-center justify-center p-4 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 hover:bg-purple-100 transition">
+            <Link href="/reports" className="flex flex-col items-center justify-center p-4 rounded-xl bg-purple-50 dark:bg-purple-900/10 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition">
               <svg className="w-6 h-6 mb-2" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
               <span className="font-semibold text-sm">View Reports</span>
             </Link>
 
-            <Link href="/journal" className="flex flex-col items-center justify-center p-4 rounded-xl bg-green-50 text-green-600 border border-green-100 hover:bg-green-100 transition">
+            <Link href="/journal" className="flex flex-col items-center justify-center p-4 rounded-xl bg-green-50 dark:bg-green-900/10 text-green-600 dark:text-green-400 border border-green-100 dark:border-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/30 transition">
               <svg className="w-6 h-6 mb-2" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
               <span className="font-semibold text-sm">Write Journal</span>
             </Link>
@@ -385,18 +385,18 @@ export default function Dashboard() {
 
 function StatCard({ title, value, subtitle, icon, iconBg, onClick }: { title: string, value: string, subtitle: string, icon: string, iconBg: string, onClick: () => void }) {
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between transition-colors">
       <div className="flex justify-between items-start mb-4">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 ${iconBg}`}>
           {icon}
         </div>
-        <p className="text-xs font-semibold text-slate-500">{title}</p>
+        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{title}</p>
       </div>
       <div>
-        <h3 className="text-xl font-bold text-slate-800 mb-2">{value}</h3>
+        <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">{value}</h3>
         <button 
           onClick={onClick}
-          className="text-xs font-semibold text-blue-600 hover:underline text-left"
+          className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline text-left"
         >
           {subtitle}
         </button>

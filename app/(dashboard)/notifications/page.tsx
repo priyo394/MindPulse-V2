@@ -38,7 +38,7 @@ export default function NotificationsPage() {
         id: doc.id,
         ...doc.data(),
         isGlobal: true, 
-        isRead: readIds.includes(doc.id) // <-- লোকাল স্টোরেজ থেকে চেক করবে পড়া হয়েছে কিনা
+        isRead: readIds.includes(doc.id) // <-- লোকাল স্টোরেজ থেকে চেক করবে পড়া হয়েছে কিনা
       }));
       setAnnouncements(annData);
       setIsLoading(false);
@@ -143,10 +143,10 @@ export default function NotificationsPage() {
 
   const getIconData = (type: string) => {
     const t = type?.toLowerCase();
-    if (t === 'success') return { icon: '🎉', bg: 'bg-green-100 text-green-600 border-green-200' };
-    if (t === 'warning') return { icon: '⚠️', bg: 'bg-amber-100 text-amber-600 border-amber-200' };
-    if (t === 'reminder') return { icon: '⏰', bg: 'bg-orange-100 text-orange-600 border-orange-200' };
-    return { icon: '💡', bg: 'bg-blue-100 text-blue-600 border-blue-200' }; 
+    if (t === 'success') return { icon: '🎉', bg: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800/50' };
+    if (t === 'warning') return { icon: '⚠️', bg: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/50' };
+    if (t === 'reminder') return { icon: '⏰', bg: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800/50' };
+    return { icon: '💡', bg: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800/50' }; 
   };
 
   // Safe Date Formatting Helper
@@ -168,24 +168,24 @@ export default function NotificationsPage() {
   const unreadCount = allMessages.filter(n => !n.isRead).length;
 
   return (
-    <div className="p-4 md:p-8 w-full max-w-4xl mx-auto">
+    <div className="p-4 md:p-8 w-full max-w-4xl mx-auto transition-colors duration-200">
       <header className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 mb-2">
-             <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 text-xl shadow-sm">
+             <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 text-xl shadow-sm border border-blue-200 dark:border-blue-800/50">
                🔔
              </div>
-             <h2 className="text-2xl md:text-3xl font-bold text-slate-900">Notifications</h2>
+             <h2 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-100">Notifications</h2>
           </div>
-          <p className="text-slate-500 mt-1 text-sm md:text-base font-medium">
-            You have <span className="font-bold text-blue-600">{unreadCount}</span> unread messages.
+          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm md:text-base font-medium">
+            You have <span className="font-bold text-blue-600 dark:text-blue-400">{unreadCount}</span> unread messages.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button 
             onClick={generateDummyNotification}
-            className="text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg transition"
+            className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 px-3 py-2 rounded-lg transition"
           >
             + Add Test Notification
           </button>
@@ -193,7 +193,7 @@ export default function NotificationsPage() {
           {unreadCount > 0 && (
             <button 
               onClick={markAllAsRead}
-              className="text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition"
+              className="text-sm font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-4 py-2 rounded-lg transition border border-blue-100 dark:border-blue-800/50"
             >
               Mark all as read
             </button>
@@ -201,21 +201,21 @@ export default function NotificationsPage() {
         </div>
       </header>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden min-h-[50vh]">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden min-h-[50vh] transition-colors">
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
           </div>
         ) : allMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center h-64 p-6">
-            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-3xl mb-4">
+            <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center text-3xl mb-4">
               📭
             </div>
-            <h4 className="text-lg font-bold text-slate-700 mb-1">All caught up!</h4>
-            <p className="text-slate-500 text-sm">You have no new notifications at the moment.</p>
+            <h4 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-1">All caught up!</h4>
+            <p className="text-slate-500 dark:text-slate-400 text-sm">You have no new notifications at the moment.</p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {allMessages.map((notif) => {
               const { icon, bg } = getIconData(notif.type);
               
@@ -225,7 +225,9 @@ export default function NotificationsPage() {
                   onClick={() => markAsRead(notif.id, notif.isRead, notif.isGlobal)}
                   // আনরিড হলে ব্যাকগ্রাউন্ড নীল এবং ক্লিক্যাবল হবে
                   className={`p-4 md:p-6 flex items-start gap-4 transition-colors ${
-                    !notif.isRead ? "cursor-pointer bg-blue-50/40 hover:bg-blue-50/70" : "bg-white hover:bg-slate-50"
+                    !notif.isRead 
+                      ? "cursor-pointer bg-blue-50/40 dark:bg-blue-950/30 hover:bg-blue-50/70 dark:hover:bg-blue-950/50" 
+                      : "bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                   }`}
                 >
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 text-xl border shadow-sm ${bg}`}>
@@ -235,24 +237,24 @@ export default function NotificationsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className={`text-base font-bold truncate ${notif.isRead ? 'text-slate-700' : 'text-slate-900'}`}>
+                        <h4 className={`text-base font-bold truncate ${notif.isRead ? 'text-slate-700 dark:text-slate-300' : 'text-slate-900 dark:text-slate-100'}`}>
                           {notif.title}
                         </h4>
                         {notif.isGlobal && (
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 flex items-center gap-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-md border border-blue-100 dark:border-blue-800/50 flex items-center gap-1">
                             📢 Broadcast
                           </span>
                         )}
                       </div>
                       {/* আনরিড হলে নীল রঙের ডট দেখাবে */}
                       {!notif.isRead && (
-                        <span className="w-2.5 h-2.5 bg-blue-600 rounded-full shrink-0 mt-1.5 shadow-sm"></span>
+                        <span className="w-2.5 h-2.5 bg-blue-600 dark:bg-blue-400 rounded-full shrink-0 mt-1.5 shadow-sm"></span>
                       )}
                     </div>
-                    <p className={`text-sm mb-2 leading-relaxed ${notif.isRead ? 'text-slate-500' : 'text-slate-700 font-medium'}`}>
+                    <p className={`text-sm mb-2 leading-relaxed ${notif.isRead ? 'text-slate-500 dark:text-slate-400' : 'text-slate-700 dark:text-slate-200 font-medium'}`}>
                       {notif.message || notif.content} 
                     </p>
-                    <p className="text-xs font-bold text-slate-400">
+                    <p className="text-xs font-bold text-slate-400 dark:text-slate-500">
                       {formatTime(notif.createdAt)}
                     </p>
                   </div>

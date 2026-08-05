@@ -56,7 +56,6 @@ export default function ManageUsersPage() {
 
   useEffect(() => {
     fetchUsers();
-    // Cleanup timer on unmount
     return () => {
       if (undoTimer) clearTimeout(undoTimer);
     };
@@ -71,7 +70,6 @@ export default function ManageUsersPage() {
       filterRole === "all" || 
       (filterRole === "suspended" ? user.status === "suspended" : user.role === filterRole);
       
-    // Pending delete ইউজারকে লিস্টে দেখাবো না
     const isNotPendingDelete = pendingDeleteUser?.id !== user.id;
 
     return matchesSearch && matchesFilter && isNotPendingDelete;
@@ -109,25 +107,20 @@ export default function ManageUsersPage() {
     }
   };
 
-  // ডিলিট প্রসেস শুরু (Delayed)
   const handleDeleteRequest = (user: AppUser) => {
-    // যদি আগে থেকেই কোনো ডিলিট পেন্ডিং থাকে, তবে সেটাকে ফোর্স ডিলিট করে দেব
     if (pendingDeleteUser) {
         forceDelete(pendingDeleteUser);
     }
 
-    // ইউজারকে পেন্ডিং লিস্টে পাঠালাম (இதனால் সে UI থেকে গায়েব হয়ে যাবে)
     setPendingDeleteUser(user);
 
-    // ৫ সেকেন্ডের টাইমার সেট করলাম
     const timer = setTimeout(() => {
         executeDelete(user);
-    }, 5000); // 5 Seconds
+    }, 5000);
 
     setUndoTimer(timer);
   };
 
-  // ৫ সেকেন্ড পর আসল ডিলিট হবে
   const executeDelete = async (userToDelete: AppUser) => {
     try {
         await deleteDoc(doc(db, "users", userToDelete.id));
@@ -135,7 +128,6 @@ export default function ManageUsersPage() {
         setPendingDeleteUser(null);
         setUndoTimer(null);
 
-        // Activity Log
         await addDoc(collection(db, "activityLogs"), {
             userName: "Admin User",
             action: "Deleted User",
@@ -145,13 +137,11 @@ export default function ManageUsersPage() {
         });
     } catch (error) {
         console.error("Error executing delete:", error);
-        // Error হলে আবার লিস্টে ফেরত আনবো
         setPendingDeleteUser(null);
         alert("Failed to delete user permanently.");
     }
   };
 
-  // যদি অন্য ইউজারকে ডিলিট করতে যায়, তবে আগের জনকে সাথে সাথে ডিলিট করার লজিক
   const forceDelete = async (userToDelete: AppUser) => {
     if(undoTimer) clearTimeout(undoTimer);
     try {
@@ -170,7 +160,6 @@ export default function ManageUsersPage() {
     }
   };
 
-  // Undo ফাংশন
   const handleUndo = () => {
       if(undoTimer) {
           clearTimeout(undoTimer);
@@ -179,15 +168,14 @@ export default function ManageUsersPage() {
       setUndoTimer(null);
   };
 
-
   return (
-    <div className="flex-1 flex flex-col overflow-y-auto bg-[#f8fafc] p-4 md:p-6 space-y-6 relative">
+    <div className="flex-1 flex flex-col overflow-y-auto bg-[#f8fafc] dark:bg-slate-950 p-4 md:p-6 space-y-6 relative transition-colors">
       
       {/* Page Header */}
-      <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-colors">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Manage Users 👥</h2>
-          <p className="text-sm text-slate-500 mt-1">
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Manage Users 👥</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Total Users: {users.length} | Active: {users.filter(u => u.status !== 'suspended').length}
           </p>
         </div>
@@ -198,66 +186,66 @@ export default function ManageUsersPage() {
             placeholder="Search by name or email..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
+            className="px-4 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
           />
           <select 
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
-            className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            className="px-4 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
           >
-            <option value="all">All Users</option>
-            <option value="admin">Admins</option>
-            <option value="user">Regular Users</option>
-            <option value="suspended">Suspended</option>
+            <option value="all" className="dark:bg-slate-900">All Users</option>
+            <option value="admin" className="dark:bg-slate-900">Admins</option>
+            <option value="user" className="dark:bg-slate-900">Regular Users</option>
+            <option value="suspended" className="dark:bg-slate-900">Suspended</option>
           </select>
         </div>
       </div>
 
       {/* Users Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 transition-colors">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
-              <tr className="border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                 <th className="pb-4 pl-2">User Details</th>
                 <th className="pb-4">Joined Date</th>
                 <th className="pb-4">Role & Status</th>
                 <th className="pb-4 text-right pr-2">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50 text-sm">
+            <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60 text-sm">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="py-10 text-center text-slate-400">
+                  <td colSpan={4} className="py-10 text-center text-slate-400 dark:text-slate-500">
                     <div className="flex flex-col items-center justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mb-2"></div>
                       Fetching users...
                     </div>
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-10 text-center text-slate-400 font-medium">
+                  <td colSpan={4} className="py-10 text-center text-slate-400 dark:text-slate-500 font-medium">
                     No users found matching your search.
                   </td>
                 </tr>
               ) : (
                 filteredUsers.map((u) => (
-                  <tr key={u.id} className={`transition group ${u.status === 'suspended' ? 'bg-red-50/30' : 'hover:bg-slate-50/80'}`}>
+                  <tr key={u.id} className={`transition group ${u.status === 'suspended' ? 'bg-red-50/30 dark:bg-red-950/20' : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/50'}`}>
                     
                     <td className="py-4 pl-2">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${u.status === 'suspended' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'}`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${u.status === 'suspended' ? 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400' : 'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400'}`}>
                           {u.name?.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className={`font-bold ${u.status === 'suspended' ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{u.name}</p>
-                          <p className="text-xs text-slate-500">{u.email}</p>
+                          <p className={`font-bold ${u.status === 'suspended' ? 'text-slate-500 dark:text-slate-400 line-through' : 'text-slate-800 dark:text-slate-100'}`}>{u.name}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{u.email}</p>
                         </div>
                       </div>
                     </td>
 
-                    <td className="py-4 text-slate-600 font-medium text-xs">
+                    <td className="py-4 text-slate-600 dark:text-slate-300 font-medium text-xs">
                       {u.createdAt && u.createdAt !== "N/A" 
                         ? new Date(u.createdAt).toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' })
                         : "Unknown"}
@@ -266,12 +254,12 @@ export default function ManageUsersPage() {
                     <td className="py-4">
                       <div className="flex flex-col gap-1.5 items-start">
                         <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                          u.role === "admin" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                          u.role === "admin" ? "bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
                         }`}>
                           {u.role}
                         </span>
                         {u.status === "suspended" && (
-                          <span className="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-600">
+                          <span className="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400">
                             Suspended
                           </span>
                         )}
@@ -282,7 +270,7 @@ export default function ManageUsersPage() {
                       <div className="flex items-center justify-end gap-2">
                         
                         {/* View Button */}
-                        <button onClick={() => setSelectedUser(u)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="View Details">
+                        <button onClick={() => setSelectedUser(u)} className="p-2 text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition" title="View Details">
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                         </button>
 
@@ -290,23 +278,23 @@ export default function ManageUsersPage() {
                         <button 
                           onClick={() => toggleUserStatus(u.id, u.status || 'active')}
                           disabled={actionLoadingId === u.id}
-                          className={`p-2 rounded-lg transition ${u.status === 'suspended' ? 'text-orange-500 hover:bg-orange-50' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'}`}
+                          className={`p-2 rounded-lg transition ${u.status === 'suspended' ? 'text-orange-500 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/40' : 'text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40'}`}
                           title={u.status === 'suspended' ? 'Reactivate User' : 'Suspend User'}
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
                         </button>
 
-                        {/* Delete Button (Now uses handleDeleteRequest) */}
+                        {/* Delete Button */}
                         <button 
                           onClick={() => handleDeleteRequest(u)}
                           disabled={actionLoadingId === u.id}
-                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" 
+                          className="p-2 text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition" 
                           title="Delete User"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         </button>
 
-                        <div className="w-px h-6 bg-slate-200 mx-1"></div>
+                        <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1"></div>
 
                         {/* Role Button */}
                         <button
@@ -314,8 +302,8 @@ export default function ManageUsersPage() {
                           disabled={actionLoadingId === u.id}
                           className={`text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all shadow-sm w-28 text-center ${
                             u.role === "admin"
-                              ? "bg-rose-50 text-rose-600 hover:bg-rose-100"
-                              : "bg-blue-50 text-blue-600 hover:bg-blue-100"
+                              ? "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40"
+                              : "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40"
                           }`}
                         >
                           {actionLoadingId === u.id ? "Loading..." : u.role === "admin" ? "Remove Admin" : "Make Admin"}
@@ -334,36 +322,36 @@ export default function ManageUsersPage() {
 
       {/* User Details Modal */}
       {selectedUser && (
-        <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl relative">
-            <button onClick={() => setSelectedUser(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700">
+        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-md shadow-xl relative border border-slate-200 dark:border-slate-800 transition-colors">
+            <button onClick={() => setSelectedUser(null)} className="absolute top-4 right-4 text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
             <div className="text-center mb-6 mt-2">
-              <div className="w-20 h-20 bg-blue-100 text-blue-700 rounded-full mx-auto flex items-center justify-center text-3xl font-bold mb-3">
+              <div className="w-20 h-20 bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 rounded-full mx-auto flex items-center justify-center text-3xl font-bold mb-3">
                 {selectedUser.name?.charAt(0).toUpperCase()}
               </div>
-              <h3 className="text-2xl font-bold text-slate-800">{selectedUser.name}</h3>
-              <p className="text-slate-500">{selectedUser.email}</p>
+              <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{selectedUser.name}</h3>
+              <p className="text-slate-500 dark:text-slate-400">{selectedUser.email}</p>
             </div>
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
-                <span className="font-semibold text-slate-600">User ID</span>
-                <span className="text-slate-800 font-mono text-xs">{selectedUser.id}</span>
+              <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-lg">
+                <span className="font-semibold text-slate-600 dark:text-slate-400">User ID</span>
+                <span className="text-slate-800 dark:text-slate-200 font-mono text-xs">{selectedUser.id}</span>
               </div>
-              <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
-                <span className="font-semibold text-slate-600">Role</span>
-                <span className="uppercase font-bold text-blue-600">{selectedUser.role}</span>
+              <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-lg">
+                <span className="font-semibold text-slate-600 dark:text-slate-400">Role</span>
+                <span className="uppercase font-bold text-blue-600 dark:text-blue-400">{selectedUser.role}</span>
               </div>
-              <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
-                <span className="font-semibold text-slate-600">Status</span>
-                <span className={`uppercase font-bold ${selectedUser.status === 'suspended' ? 'text-red-500' : 'text-emerald-500'}`}>
+              <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-lg">
+                <span className="font-semibold text-slate-600 dark:text-slate-400">Status</span>
+                <span className={`uppercase font-bold ${selectedUser.status === 'suspended' ? 'text-red-500 dark:text-red-400' : 'text-emerald-500 dark:text-emerald-400'}`}>
                   {selectedUser.status || 'Active'}
                 </span>
               </div>
-              <div className="flex justify-between p-3 bg-slate-50 rounded-lg">
-                <span className="font-semibold text-slate-600">Joined On</span>
-                <span className="text-slate-800">
+              <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-lg">
+                <span className="font-semibold text-slate-600 dark:text-slate-400">Joined On</span>
+                <span className="text-slate-800 dark:text-slate-200">
                   {selectedUser.createdAt !== "N/A" ? new Date(selectedUser.createdAt!).toLocaleString() : "Unknown"}
                 </span>
               </div>
@@ -374,7 +362,7 @@ export default function ManageUsersPage() {
 
       {/* Undo Toast Notification */}
       {pendingDeleteUser && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-4 z-50 animate-bounce-short border border-slate-700">
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-800 dark:bg-slate-900 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-4 z-50 animate-bounce-short border border-slate-700 dark:border-slate-800">
             <span className="text-sm font-medium">User <b>{pendingDeleteUser.name}</b> removed.</span>
             <div className="w-px h-4 bg-slate-600"></div>
             <button 

@@ -8,6 +8,7 @@ import { doc, getDoc, collection, query, where, onSnapshot } from "firebase/fire
 import { auth, db } from "../../lib/firebase";
 import Link from "next/link";
 import CheckInModal from "../components/CheckInModal"; 
+import ThemeToggle from "../components/ThemeToggle"; // 👈 ThemeToggle import kora holo
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -44,7 +45,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         try {
           const userDoc = await getDoc(doc(db, "users", user.uid));
           
-          // চেক ১: যদি ইউজারের ডকুমেন্ট ডাটাবেসে না থাকে (অর্থাৎ অ্যাডমিন ডিলিট করে দিয়েছে)
           if (!userDoc.exists()) {
             alert("Your account has been deleted by the administrator.");
             await signOut(auth);
@@ -54,8 +54,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           const userData = userDoc.data();
 
-          // চেক ২: যদি ইউজারকে সাসপেন্ড করা হয় (অ্যাডমিন প্যানেলের স্ট্যাটাস অনুযায়ী)
-          // আপনার অ্যাডমিন প্যানেল যদি status: "suspended" বা isSuspended: true সেভ করে, তবে সেটি এখানে চেক হবে
           if (userData?.status === "suspended" || userData?.isSuspended === true || userData?.status === "inactive") {
             alert("Your account has been suspended. Please contact support.");
             await signOut(auth);
@@ -63,7 +61,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             return;
           }
 
-          // যদি সব ঠিক থাকে, তবে নাম সেট করবে
           if (userData.name) {
             setUserName(userData.name);
           } else {
@@ -87,7 +84,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setUnreadPersonal(snapshot.docs.length);
       });
 
-      // ৩. গ্লোবাল অ্যানাউন্সমেন্ট ফেচ করা এবং লোকাল স্টোরেজের সাথে মিলিয়ে আনরিড বের করা
+      // ৩. গ্লোবাল অ্যানাউন্সমেন্ট ফেচ করা এবং লোকাল স্টোরেজের সাথে মিলিয়ে আনরিড বের করা
       let fetchedAnnouncements: any[] = [];
       const updateGlobalCount = () => {
         const readIds = JSON.parse(localStorage.getItem(`readAnnouncements_${user.uid}`) || "[]");
@@ -101,7 +98,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         updateGlobalCount();
       });
 
-      // কাস্টম ইভেন্ট লিসেনার (যাতে ক্লিক করলেই সাথে সাথে বেল আইকনের কাউন্ট কমে যায়)
       window.addEventListener("announcementRead", updateGlobalCount);
 
       // ৪. রিয়েল-টাইম গ্লোবাল সেটিংস (মেইনটেন্যান্স মোড) ফেচ করা
@@ -127,8 +123,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] dark:bg-slate-950">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 dark:border-blue-500"></div>
       </div>
     );
   }
@@ -137,32 +133,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const totalUnreadCount = unreadPersonal + unreadGlobal;
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex font-sans text-slate-800 overflow-hidden">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-slate-950 flex font-sans text-slate-800 dark:text-slate-100 overflow-hidden transition-colors duration-200">
       
       {/* Mobile Backdrop Overlay */}
       {isMobileMenuOpen && (
         <div 
           onClick={() => setIsMobileMenuOpen(false)}
-          className="fixed inset-0 bg-black/40 z-40 md:hidden transition-opacity"
+          className="fixed inset-0 bg-black/40 dark:bg-black/60 z-40 md:hidden transition-opacity"
         ></div>
       )}
 
       {/* Sidebar - Fixed on the left */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 h-screen transition-transform duration-300 ease-in-out md:translate-x-0 ${
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between shrink-0 h-screen transition-transform duration-300 ease-in-out md:translate-x-0 ${
         isMobileMenuOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
       }`}>
         <div>
-          <div className="h-[73px] px-6 border-b border-slate-200 flex justify-between items-center bg-white">
+          <div className="h-[73px] px-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
             <div className="flex items-center gap-2">
               <span className="text-3xl drop-shadow-sm">🧠</span>
               <div className="leading-tight mt-1">
-                <h1 className="text-xl font-bold text-slate-800 tracking-wide">MindPulse</h1>
-                <span className="text-[10px] text-blue-600 font-bold uppercase tracking-widest">Smart Wellness</span>
+                <h1 className="text-xl font-bold text-slate-800 dark:text-white tracking-wide">MindPulse</h1>
+                <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-widest">Smart Wellness</span>
               </div>
             </div>
             <button 
               onClick={() => setIsMobileMenuOpen(false)}
-              className="md:hidden text-slate-400 hover:text-slate-600 p-1"
+              className="md:hidden text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 p-1"
             >
               ✕
             </button>
@@ -185,10 +181,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </nav>
         </div>
 
-        <div className="p-4 border-t border-slate-200">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800">
           <button 
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 border border-red-200 text-red-500 py-2.5 rounded-lg text-sm font-semibold hover:bg-red-50 transition"
+            className="w-full flex items-center justify-center gap-2 border border-red-200 dark:border-red-900/50 text-red-500 dark:text-red-400 py-2.5 rounded-lg text-sm font-semibold hover:bg-red-50 dark:hover:bg-red-900/20 transition"
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.89 2 2 2h8v-2H4V5z"/></svg>
             Logout
@@ -200,23 +196,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex-1 flex flex-col md:ml-64 h-screen w-full">
         
         {/* GLOBAL TOP BAR */}
-        <header className="bg-white border-b border-slate-200 h-[73px] shrink-0 sticky top-0 z-30 flex justify-between items-center px-4 md:px-8 w-full">
+        <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 h-[73px] shrink-0 sticky top-0 z-30 flex justify-between items-center px-4 md:px-8 w-full transition-colors duration-200">
           
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setIsMobileMenuOpen(true)}
-              className="md:hidden p-2 -ml-2 bg-transparent rounded-lg text-slate-700 hover:bg-slate-100 transition"
+              className="md:hidden p-2 -ml-2 bg-transparent rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"></path></svg>
             </button>
             
             <div className="hidden sm:block">
-              <p className="text-[10px] md:text-xs font-bold text-blue-600 mb-0.5 uppercase tracking-wider">{currentDate}</p>
-              <h1 className="text-lg md:text-xl font-bold text-slate-900 leading-none">Welcome back, {userName}! 👋</h1>
+              <p className="text-[10px] md:text-xs font-bold text-blue-600 dark:text-blue-400 mb-0.5 uppercase tracking-wider">{currentDate}</p>
+              <h1 className="text-lg md:text-xl font-bold text-slate-900 dark:text-white leading-none">Welcome back, {userName}! 👋</h1>
             </div>
           </div>
           
           <div className="flex items-center gap-3 md:gap-4 shrink-0">
+            
+            {/* ☀️/🌙 Theme Toggle Add Kora Holo */}
+            <ThemeToggle />
+
             <button 
               onClick={() => setIsModalOpen(true)}
               className="bg-blue-600 text-white px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-semibold hover:bg-blue-700 shadow-sm flex items-center gap-1.5 transition"
@@ -224,37 +224,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span>+</span> <span className="hidden sm:inline">New Check-In</span><span className="sm:hidden">Check-In</span>
             </button>
             
-            <div className="w-px h-6 bg-slate-200 mx-1"></div>
+            <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1"></div>
 
             {/* Dynamic Notification Bell */}
-            <Link href="/notifications" className="relative p-2 bg-slate-50 rounded-full shadow-sm border border-slate-100 cursor-pointer hover:bg-slate-100 transition block">
-              <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+            <Link href="/notifications" className="relative p-2 bg-slate-50 dark:bg-slate-800 rounded-full shadow-sm border border-slate-100 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition block">
+              <svg className="w-5 h-5 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
               {totalUnreadCount > 0 && (
-                <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-bold flex items-center justify-center rounded-full border-2 border-white">
+                <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-bold flex items-center justify-center rounded-full border-2 border-white dark:border-slate-800">
                   {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
                 </span>
               )}
             </Link>
 
-            <Link href="/profile" className="flex items-center gap-2 bg-slate-50 pl-1 pr-3 md:pr-4 py-1.5 rounded-full border border-slate-100 cursor-pointer hover:bg-slate-100 transition">
-              <div className="w-7 h-7 md:w-8 md:h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold text-xs md:text-sm shrink-0">
+            <Link href="/profile" className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 pl-1 pr-3 md:pr-4 py-1.5 rounded-full border border-slate-100 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+              <div className="w-7 h-7 md:w-8 md:h-8 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center text-blue-700 dark:text-blue-400 font-bold text-xs md:text-sm shrink-0">
                 {userName ? userName.charAt(0).toUpperCase() : "U"}
               </div>
-              <span className="text-xs md:text-sm font-semibold text-slate-800 hidden sm:block">{userName}</span>
+              <span className="text-xs md:text-sm font-semibold text-slate-800 dark:text-slate-200 hidden sm:block">{userName}</span>
             </Link>
           </div>
         </header>
 
         {/* Dynamic Page Content Area */}
-        <main className="flex-1 w-full overflow-y-auto bg-[#f8fafc]">
+        <main className="flex-1 w-full overflow-y-auto bg-[#f8fafc] dark:bg-slate-950 transition-colors duration-200">
           
           {/* যদি মেইনটেন্যান্স মোড অন থাকে, তবে পুরো পেজ জুড়ে এই স্ক্রিন দেখাবে */}
           {appSettings?.maintenanceMode ? (
             <div className="h-[calc(100vh-73px)] flex items-center justify-center p-4">
-              <div className="bg-white p-8 md:p-12 rounded-3xl shadow-sm text-center max-w-lg w-full border border-slate-100">
-                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">🛠️</div>
-                <h2 className="text-2xl md:text-3xl font-extrabold text-slate-800 mb-3 tracking-tight">We'll be right back!</h2>
-                <p className="text-slate-500 text-sm md:text-base leading-relaxed">
+              <div className="bg-white dark:bg-slate-900 p-8 md:p-12 rounded-3xl shadow-sm text-center max-w-lg w-full border border-slate-100 dark:border-slate-800">
+                <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">🛠️</div>
+                <h2 className="text-2xl md:text-3xl font-extrabold text-slate-800 dark:text-white mb-3 tracking-tight">We'll be right back!</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm md:text-base leading-relaxed">
                   MindPulse is currently undergoing scheduled maintenance to improve your experience. We appreciate your patience and will be back online shortly.
                 </p>
               </div>
@@ -276,12 +276,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 }
 
+// SidebarLink component-eo dark mode update kora holo
 function SidebarLink({ href, active, icon, children }: { href: string; active: boolean; icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <Link
       href={href}
       className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold transition ${
-        active ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+        active 
+          ? "bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400" 
+          : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200"
       }`}
     >
       <svg className="w-5 h-5 shrink-0" fill="currentColor" viewBox="0 0 24 24">{icon}</svg>

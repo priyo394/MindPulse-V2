@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* 👈 Tailwind v4-এ .dark ক্লাস কাজ করার জন্য এটি আবশ্যিক */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
