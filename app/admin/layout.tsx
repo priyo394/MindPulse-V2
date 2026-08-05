@@ -7,7 +7,7 @@ import { auth, db } from "../../lib/firebase";
 import { signOut } from "firebase/auth";
 import { useState, useEffect } from "react";
 import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
-import ThemeToggle from "../components/ThemeToggle"; // 👈 ThemeToggle Import kora holo
+import ThemeToggle from "../components/ThemeToggle"; 
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -72,8 +72,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         ></div>
       )}
 
-      {/* Sidebar - Desktop & Mobile Drawer */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0f172a] dark:bg-slate-900 text-slate-300 dark:border-r dark:border-slate-800 flex flex-col justify-between shadow-2xl transition-transform duration-300 ease-in-out md:translate-x-0 md:sticky md:top-0 ${
+      {/* Sidebar - Desktop & Mobile Drawer (LIGHT MODE WHITE & DARK MOIDE SLATE-900) */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 flex flex-col justify-between shadow-2xl transition-transform duration-300 ease-in-out md:translate-x-0 md:sticky md:top-0 ${
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       }`}>
         <div className="p-6 overflow-y-auto custom-scrollbar">
@@ -83,14 +83,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="flex items-center gap-3">
               <span className="text-3xl drop-shadow-md">🧠</span>
               <div>
-                <h1 className="text-xl font-bold text-white tracking-wide">MindPulse</h1>
-                <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">Admin Panel</span>
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-wide">MindPulse</h1>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-widest">Admin Panel</span>
               </div>
             </div>
             {/* Close button for mobile */}
             <button 
               onClick={() => setIsMobileMenuOpen(false)}
-              className="md:hidden text-slate-400 hover:text-white p-1"
+              className="md:hidden text-slate-400 hover:text-slate-700 dark:hover:text-white p-1"
             >
               ✕
             </button>
@@ -106,7 +106,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
                     isActive
                       ? "bg-emerald-600 text-white shadow-sm"
-                      : "hover:bg-slate-800 text-slate-300 hover:text-white"
+                      : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
                   }`}
                 >
                   <span>{item.icon}</span>
@@ -118,10 +118,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Sidebar Footer (Profile & Logout) */}
-        <div className="p-5 border-t border-slate-800 dark:border-slate-800 bg-[#0b1120] dark:bg-slate-950">
+        <div className="p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
           <button 
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-400 hover:text-white hover:bg-red-500/20 rounded-xl transition-colors border border-red-500/20"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-500 dark:text-red-400 hover:text-white hover:bg-red-500 rounded-xl transition-colors border border-red-500/20"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
             Logout
@@ -157,7 +157,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           
           <div className="flex items-center gap-3 md:gap-4">
             
-            {/* ☀️/🌙 Theme Toggle Add Kora Holo */}
+            {/* Theme Toggle */}
             <ThemeToggle />
 
             {/* Notification Bell with Functional Dropdown */}
@@ -167,7 +167,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   setShowNotifications(!showNotifications);
                   setUnreadCount(0);
                 }}
-                className="relative p-2.5 text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 cursor-pointer"
+                className="relative p-2.5 text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 cursor-pointer"
                 aria-label="Notifications"
               >
                 {unreadCount > 0 && (
@@ -184,7 +184,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-800/50">Live Logs</span>
                   </div>
 
-                  <div className="max-h-72 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-700/50">
+                  <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/50">
                     {notifications.length === 0 ? (
                       <div className="p-6 text-center text-slate-400 dark:text-slate-500 text-xs">
                         No new notifications found.
@@ -212,7 +212,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
 
             {/* Top Bar Profile */}
-            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-full py-1.5 px-1.5 pr-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full py-1.5 px-1.5 pr-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition">
               <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold text-sm">
                 {user?.email ? user.email.charAt(0).toUpperCase() : "A"}
               </div>
