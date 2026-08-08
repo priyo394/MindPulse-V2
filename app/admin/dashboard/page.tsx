@@ -153,7 +153,8 @@ export default function AdminDashboard() {
                       </span>
                     </td>
                     <td className="py-3 text-right pr-2">
-                      <Link href={`/admin/manage-users`} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-xs bg-blue-50 dark:bg-blue-950/40 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/50">
+                      {/* 👈 ডাইনামিক ইউজার আইডি সহ রাউট ফিক্স করা হলো */}
+                      <Link href={`/admin/users/${u.id}`} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-xs bg-blue-50 dark:bg-blue-950/40 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/50">
                         View
                       </Link>
                     </td>
