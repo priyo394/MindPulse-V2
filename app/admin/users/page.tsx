@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { db } from "../../../lib/firebase"; 
-import { collection, getDocs, doc, updateDoc, deleteDoc, addDoc } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from "firebase/firestore";
 
 interface AppUser {
   id: string;
@@ -10,9 +10,45 @@ interface AppUser {
   email: string;
   role: string;
   status?: string;
-  createdAt?: string;
+  createdAt?: any; // ফায়ারবেস অবজেক্ট বা স্ট্রিং হ্যান্ডেল করার জন্য any করা হয়েছে
   lastActive?: string;
 }
+
+// 🛠️ ডেট ফরম্যাট করার জন্য একটি সার্বজনীন হেল্পার ফাংশন (টেবিল ও মোডাল উভয়ের জন্য)
+const formatUserDate = (rawDate: any, includeTime = false) => {
+  if (!rawDate || rawDate === "N/A") return "Unknown";
+  
+  let dateObj: Date;
+
+  // যদি ফায়ারবেস টাইমস্ট্যাম্প অবজেক্ট হয়
+  if (typeof rawDate?.toDate === "function") {
+    dateObj = rawDate.toDate();
+  } else if (rawDate?.seconds) {
+    dateObj = new Date(rawDate.seconds * 1000);
+  } else {
+    // যদি সাধারণ ISO string বা অন্য কোনো টেক্সট ফরম্যাট হয়
+    dateObj = new Date(rawDate);
+  }
+
+  // ডেটটি ভ্যালিড কিনা চেক করা
+  if (isNaN(dateObj.getTime())) return "Unknown";
+
+  if (includeTime) {
+    return dateObj.toLocaleString("en-US", {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  return dateObj.toLocaleDateString("en-US", { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  });
+};
 
 export default function ManageUsersPage() {
   const [users, setUsers] = useState<AppUser[]>([]);
@@ -128,12 +164,13 @@ export default function ManageUsersPage() {
         setPendingDeleteUser(null);
         setUndoTimer(null);
 
+        // ⚡ ডাইনামিক লাইভ লগের জন্য serverTimestamp() ব্যবহার করা হয়েছে
         await addDoc(collection(db, "activityLogs"), {
             userName: "Admin User",
             action: "Deleted User",
             details: `Permanently deleted user: ${userToDelete.email}`,
             type: "danger",
-            createdAt: new Date().toISOString(),
+            createdAt: serverTimestamp(),
         });
     } catch (error) {
         console.error("Error executing delete:", error);
@@ -148,12 +185,13 @@ export default function ManageUsersPage() {
         await deleteDoc(doc(db, "users", userToDelete.id));
         setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
         
+        // ⚡ ডাইনামিক লাইভ লগের জন্য serverTimestamp() ব্যবহার করা হয়েছে
         await addDoc(collection(db, "activityLogs"), {
             userName: "Admin User",
             action: "Deleted User",
             details: `Permanently deleted user: ${userToDelete.email}`,
             type: "danger",
-            createdAt: new Date().toISOString(),
+            createdAt: serverTimestamp(),
         });
     } catch(e) {
         console.error(e);
@@ -245,10 +283,9 @@ export default function ManageUsersPage() {
                       </div>
                     </td>
 
+                    {/*  সুরক্ষিত Joined Date কলাম */}
                     <td className="py-4 text-slate-600 dark:text-slate-300 font-medium text-xs">
-                      {u.createdAt && u.createdAt !== "N/A" 
-                        ? new Date(u.createdAt).toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' })
-                        : "Unknown"}
+                      {formatUserDate(u.createdAt)}
                     </td>
 
                     <td className="py-4">
@@ -349,10 +386,11 @@ export default function ManageUsersPage() {
                   {selectedUser.status || 'Active'}
                 </span>
               </div>
+              {/*  সুরক্ষিত মোডাল Joined On ডেট */}
               <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-lg">
                 <span className="font-semibold text-slate-600 dark:text-slate-400">Joined On</span>
                 <span className="text-slate-800 dark:text-slate-200">
-                  {selectedUser.createdAt !== "N/A" ? new Date(selectedUser.createdAt!).toLocaleString() : "Unknown"}
+                  {formatUserDate(selectedUser.createdAt, true)}
                 </span>
               </div>
             </div>

@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { db } from "../../../lib/firebase"; 
-import { collection, getDocs, addDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
 
 interface Announcement {
   id: string;
   title: string;
   message: string;
   type: "info" | "warning" | "success";
-  createdAt: string;
+  createdAt: any;
 }
 
 export default function AnnouncementsPage() {
@@ -24,59 +24,65 @@ export default function AnnouncementsPage() {
   const [newMessage, setNewMessage] = useState("");
   const [newType, setNewType] = useState<"info" | "warning" | "success">("info");
 
-  const fetchAnnouncements = async () => {
-    try {
-      const snap = await getDocs(collection(db, "announcements"));
-      const list: Announcement[] = [];
-      
-      snap.forEach((doc) => {
+  // ১. Real-time Listener (onSnapshot) দিয়ে অ্যানাউন্সমেন্ট ফেচ করা
+  useEffect(() => {
+    const q = collection(db, "announcements");
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: Announcement[] = snapshot.docs.map((doc) => {
         const data = doc.data();
-        list.push({
+        return {
           id: doc.id,
           title: data.title || "No Title",
           message: data.message || "No Message",
           type: data.type || "info",
-          createdAt: data.createdAt || new Date().toISOString(),
-        });
+          createdAt: data.createdAt,
+        };
       });
 
-      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setAnnouncements(list);
-    } catch (error) {
-      console.error("Error fetching announcements:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      // টাইমস্ট্যাম্প সেফটি সর্টিং
+      const getTime = (ts: any) => {
+        if (!ts) return Date.now();
+        if (typeof ts.toMillis === "function") return ts.toMillis();
+        if (ts.seconds) return ts.seconds * 1000;
+        const parsed = new Date(ts).getTime();
+        return isNaN(parsed) ? Date.now() : parsed;
+      };
 
-  useEffect(() => {
-    fetchAnnouncements();
+      list.sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
+      setAnnouncements(list);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching announcements:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
+  // ২. serverTimestamp() ব্যবহার করে তৈরি করা
   const handleCreateAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newMessage.trim()) return alert("Please fill in all fields.");
 
     setIsSubmitting(true);
     try {
-      const newAnnouncement = {
+      // ⚠️ আসল ফিক্স: new Date().toISOString() এর বদলে serverTimestamp()
+      await addDoc(collection(db, "announcements"), {
         title: newTitle,
         message: newMessage,
         type: newType,
-        createdAt: new Date().toISOString(),
-      };
-      
-      const docRef = await addDoc(collection(db, "announcements"), newAnnouncement);
+        createdAt: serverTimestamp(),
+      });
       
       await addDoc(collection(db, "activityLogs"), {
         userName: "Admin User",
         action: "Broadcasted Announcement",
         details: `Sent an announcement titled: "${newTitle}"`,
         type: "success",
-        createdAt: new Date().toISOString(),
+        createdAt: serverTimestamp(),
       });
       
-      setAnnouncements([{ id: docRef.id, ...newAnnouncement }, ...announcements]);
       setNewTitle("");
       setNewMessage("");
       setNewType("info");
@@ -102,16 +108,26 @@ export default function AnnouncementsPage() {
         action: "Deleted Announcement",
         details: `Removed a broadcasted announcement from the system.`,
         type: "danger",
-        createdAt: new Date().toISOString(),
+        createdAt: serverTimestamp(),
       });
-
-      setAnnouncements((prev) => prev.filter((a) => a.id !== id));
     } catch (error) {
       console.error("Error deleting announcement:", error);
       alert("Failed to delete announcement.");
     } finally {
       setActionLoadingId(null);
     }
+  };
+
+  // তারিখ ফরম্যাট করার সেফ ফাংশন
+  const formatDate = (ts: any) => {
+    if (!ts) return "Just now";
+    let dateObj;
+    if (typeof ts.toDate === "function") dateObj = ts.toDate();
+    else if (ts.seconds) dateObj = new Date(ts.seconds * 1000);
+    else dateObj = new Date(ts);
+
+    if (isNaN(dateObj.getTime())) return "Just now";
+    return dateObj.toLocaleString();
   };
 
   const getTypeStyles = (type: string) => {
@@ -163,7 +179,7 @@ export default function AnnouncementsPage() {
                 <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{announcement.message}</p>
                 <div className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mt-3 flex items-center gap-1">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                  Broadcasted: {new Date(announcement.createdAt).toLocaleString()}
+                  Broadcasted: {formatDate(announcement.createdAt)}
                 </div>
               </div>
               

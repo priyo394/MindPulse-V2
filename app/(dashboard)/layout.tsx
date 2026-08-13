@@ -8,7 +8,7 @@ import { doc, getDoc, collection, query, where, onSnapshot } from "firebase/fire
 import { auth, db } from "../../lib/firebase";
 import Link from "next/link";
 import CheckInModal from "../components/CheckInModal"; 
-import ThemeToggle from "../components/ThemeToggle"; // 👈 ThemeToggle import kora holo
+import ThemeToggle from "../components/ThemeToggle"; 
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -20,11 +20,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [currentDate, setCurrentDate] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   
-  // ডাইনামিক নোটিফিকেশন কাউন্টের স্টেট (পার্সোনাল এবং গ্লোবাল আলাদা করা হলো)
   const [unreadPersonal, setUnreadPersonal] = useState<number>(0);
   const [unreadGlobal, setUnreadGlobal] = useState<number>(0);
-
-  // গ্লোবাল সেটিংস (মেইনটেন্যান্স মোড) এর স্টেট
   const [appSettings, setAppSettings] = useState<any>(null);
 
   useEffect(() => {
@@ -40,7 +37,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       });
       setCurrentDate(formattedDate);
 
-      // ১. ইউজার প্রোফাইল ফেচ করা এবং সাসপেনশন/ডিলিট চেক করা
+      // ১. ইউজার অ্যাকাউন্ট তৈরির তারিখ বের করার শক্তিশালী লজিক
+      let userCreationMillis = 0;
+      if (user?.metadata?.creationTime) {
+        userCreationMillis = new Date(user.metadata.creationTime).getTime();
+      }
+
       const fetchUserProfile = async () => {
         try {
           const userDoc = await getDoc(doc(db, "users", user.uid));
@@ -66,6 +68,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           } else {
             setUserName(user.email?.split("@")[0] || "User");
           }
+
+          // যদি Auth metadata তে তারিখ না থাকে, তবে Firestore Profile-এর createdAt নেওয়া হবে
+          if (!userCreationMillis && userData?.createdAt) {
+            if (typeof userData.createdAt.toMillis === "function") {
+              userCreationMillis = userData.createdAt.toMillis();
+            } else if (userData.createdAt.seconds) {
+              userCreationMillis = userData.createdAt.seconds * 1000;
+            } else {
+              userCreationMillis = new Date(userData.createdAt).getTime();
+            }
+          }
         } catch (error) {
           console.error("Error checking user status:", error);
         }
@@ -73,7 +86,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       
       fetchUserProfile();
 
-      // ২. রিয়েল-টাইম পার্সোনাল আনরিড নোটিফিকেশন কাউন্ট ফেচ করা
+      // ২. পার্সোনাল আনরিড নোটিফিকেশন ফেচ করা
       const notificationsQuery = query(
         collection(db, "notifications"),
         where("userId", "==", user.uid),
@@ -81,14 +94,45 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       );
 
       const unsubscribeNotifications = onSnapshot(notificationsQuery, (snapshot) => {
-        setUnreadPersonal(snapshot.docs.length);
+        const count = snapshot.docs.length;
+        console.log("🔍 Personal Unread Notifications:", count);
+        setUnreadPersonal(count);
       });
 
-      // ৩. গ্লোবাল অ্যানাউন্সমেন্ট ফেচ করা এবং লোকাল স্টোরেজের সাথে মিলিয়ে আনরিড বের করা
+      // টাইমস্ট্যাম্প কনভার্ট করার জন্য হেল্পার ফাংশন
+      const getTime = (timestamp: any) => {
+        if (!timestamp) return 0;
+        if (typeof timestamp.toMillis === "function") return timestamp.toMillis();
+        if (typeof timestamp.toDate === "function") return timestamp.toDate().getTime();
+        if (timestamp.seconds) return timestamp.seconds * 1000;
+        return new Date(timestamp).getTime() || 0;
+      };
+
+      // ৩. গ্লোবাল অ্যানাউন্সমেন্ট ফেচ ও ফিল্টারিং
       let fetchedAnnouncements: any[] = [];
       const updateGlobalCount = () => {
         const readIds = JSON.parse(localStorage.getItem(`readAnnouncements_${user.uid}`) || "[]");
-        const unread = fetchedAnnouncements.filter(doc => !readIds.includes(doc.id));
+        
+        const unread = fetchedAnnouncements.filter(docSnap => {
+          const annId = docSnap.id;
+          const annData = docSnap.data();
+
+          // ইতিমধ্যে পড়া থাকলে বাদ
+          if (readIds.includes(annId)) return false;
+
+          // অ্যাকাউন্ট তৈরির আগের অ্যানাউন্সমেন্ট হলে বাদ
+          if (userCreationMillis > 0) {
+            const annTime = getTime(annData.createdAt);
+            // অ্যানাউন্সমেন্ট তৈরির সময় ইউজার সাইনআপের আগের হলে বাদ যাবে
+            if (annTime > 0 && annTime < userCreationMillis - 60000) {
+              return false;
+            }
+          }
+
+          return true;
+        });
+
+        console.log("🔍 Global Unread Announcements:", unread.length);
         setUnreadGlobal(unread.length);
       };
 
@@ -100,7 +144,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       window.addEventListener("announcementRead", updateGlobalCount);
 
-      // ৪. রিয়েল-টাইম গ্লোবাল সেটিংস (মেইনটেন্যান্স মোড) ফেচ করা
+      // ৪. গ্লোবাল সেটিংস ফেচ করা
       const unsubscribeSettings = onSnapshot(doc(db, "settings", "global"), (docSnap) => {
         if (docSnap.exists()) {
           setAppSettings(docSnap.data());
@@ -129,7 +173,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  // মোট আনরিড কাউন্ট (পার্সোনাল + গ্লোবাল)
   const totalUnreadCount = unreadPersonal + unreadGlobal;
 
   return (
@@ -143,7 +186,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         ></div>
       )}
 
-      {/* Sidebar - Fixed on the left */}
+      {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between shrink-0 h-screen transition-transform duration-300 ease-in-out md:translate-x-0 ${
         isMobileMenuOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
       }`}>
@@ -168,7 +211,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <SidebarLink href="/dashboard" active={pathname === "/dashboard"} icon={<path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>}>Dashboard</SidebarLink>
             <SidebarLink href="/checkin" active={pathname === "/checkin"} icon={<path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>}>Daily Check-In</SidebarLink>
             
-            {/* জার্নাল ফিচার অ্যাডমিন থেকে অফ থাকলে মেনু থেকে হাইড থাকবে */}
             {appSettings?.enableJournals !== false && (
               <SidebarLink href="/journal" active={pathname === "/journal"} icon={<path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/>}>Journal</SidebarLink>
             )}
@@ -214,7 +256,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           
           <div className="flex items-center gap-3 md:gap-4 shrink-0">
             
-            {/* ☀️/🌙 Theme Toggle Add Kora Holo */}
             <ThemeToggle />
 
             <button 
@@ -230,7 +271,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Link href="/notifications" className="relative p-2 bg-slate-50 dark:bg-slate-800 rounded-full shadow-sm border border-slate-100 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition block">
               <svg className="w-5 h-5 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
               {totalUnreadCount > 0 && (
-                <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-bold flex items-center justify-center rounded-full border-2 border-white dark:border-slate-800">
+                <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-bold flex items-center justify-center rounded-full border-2 border-white dark:border-slate-800 animate-pulse">
                   {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
                 </span>
               )}
@@ -247,8 +288,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Dynamic Page Content Area */}
         <main className="flex-1 w-full overflow-y-auto bg-[#f8fafc] dark:bg-slate-950 transition-colors duration-200">
-          
-          {/* যদি মেইনটেন্যান্স মোড অন থাকে, তবে পুরো পেজ জুড়ে এই স্ক্রিন দেখাবে */}
           {appSettings?.maintenanceMode ? (
             <div className="h-[calc(100vh-73px)] flex items-center justify-center p-4">
               <div className="bg-white dark:bg-slate-900 p-8 md:p-12 rounded-3xl shadow-sm text-center max-w-lg w-full border border-slate-100 dark:border-slate-800">
@@ -262,7 +301,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           ) : (
             children
           )}
-
         </main>
       </div>
 
@@ -276,7 +314,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 }
 
-// SidebarLink component-eo dark mode update kora holo
 function SidebarLink({ href, active, icon, children }: { href: string; active: boolean; icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <Link

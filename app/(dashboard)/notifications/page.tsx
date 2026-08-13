@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { collection, query, where, onSnapshot, doc, updateDoc, writeBatch, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../../lib/firebase";
@@ -11,10 +11,16 @@ export default function NotificationsPage() {
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ১. ইউজারের একাউন্ট তৈরির সময় বের করা (সরাসরি Auth থেকে, যা সবচেয়ে ফাস্ট এবং রিলায়েবল)
+  const userCreationTime = useMemo(() => {
+    if (!user?.metadata?.creationTime) return 0;
+    return new Date(user.metadata.creationTime).getTime();
+  }, [user]);
+
   useEffect(() => {
     if (!user) return;
 
-    // ১. ইউজারের পার্সোনাল নোটিফিকেশন ফেচ করা
+    // ২. পার্সোনাল নোটিফিকেশন ফেচ করা
     const qNotif = query(
       collection(db, "notifications"),
       where("userId", "==", user.uid)
@@ -29,7 +35,7 @@ export default function NotificationsPage() {
       setNotifications(notifData);
     });
 
-    // ২. অ্যাডমিন প্যানেল থেকে গ্লোবাল 'Announcements' ফেচ করা (এখানে লোকাল স্টোরেজ চেক করা হচ্ছে)
+    // ৩. গ্লোবাল অ্যানাউন্সমেন্ট ফেচ করা (এখানে কোনো ফিল্টার হবে না, শুধু ফেচ হবে)
     const qAnnounce = query(collection(db, "announcements"));
 
     const unsubscribeAnnounce = onSnapshot(qAnnounce, (snapshot) => {
@@ -38,7 +44,7 @@ export default function NotificationsPage() {
         id: doc.id,
         ...doc.data(),
         isGlobal: true, 
-        isRead: readIds.includes(doc.id) // <-- লোকাল স্টোরেজ থেকে চেক করবে পড়া হয়েছে কিনা
+        isRead: readIds.includes(doc.id)
       }));
       setAnnouncements(annData);
       setIsLoading(false);
@@ -50,8 +56,8 @@ export default function NotificationsPage() {
     };
   }, [user]);
 
-  // পার্সোনাল এবং গ্লোবাল ডেটা একসাথে মার্জ করে সময় (createdAt) অনুযায়ী সাজানো (Safe Way)
-  const allMessages = [...notifications, ...announcements].sort((a, b) => {
+  // ৪. ডেটা ফিল্টার এবং সর্ট করা (আসল ফিক্সটি এখানে করা হয়েছে)
+  const allMessages = useMemo(() => {
     const getTime = (timestamp: any) => {
       if (!timestamp) return 0;
       if (typeof timestamp.toMillis === "function") return timestamp.toMillis();
@@ -59,25 +65,35 @@ export default function NotificationsPage() {
       if (timestamp.seconds) return timestamp.seconds * 1000;
       return new Date(timestamp).getTime() || 0;
     };
-    return getTime(b.createdAt) - getTime(a.createdAt);
-  });
 
-  // নোটিফিকেশনে ক্লিক করলে রিড হিসেবে মার্ক হবে এবং কাউন্ট কমবে
+    // শুধুমাত্র গ্লোবাল অ্যানাউন্সমেন্টগুলো ফিল্টার করা
+    const filteredAnnouncements = announcements.filter(ann => {
+      if (!ann.createdAt) return false; // ডাটাবেজে createdAt না থাকলে (খুব পুরোনো ডেটা হলে) হাইড করে দিবে
+      const annTime = getTime(ann.createdAt);
+      // একাউন্ট খোলার আগের অ্যানাউন্সমেন্ট বাদ দেওয়া হবে। (৬০ সেকেন্ডের বাফার রাখা হলো সেইফটির জন্য)
+      return userCreationTime === 0 ? true : annTime >= (userCreationTime - 60000); 
+    });
+
+    // পার্সোনাল নোটিফিকেশন এবং ফিল্টার করা অ্যানাউন্সমেন্ট একসাথে করে সময় অনুযায়ী সাজানো
+    return [...notifications, ...filteredAnnouncements].sort(
+      (a, b) => getTime(b.createdAt) - getTime(a.createdAt)
+    );
+  }, [notifications, announcements, userCreationTime]);
+
+
+  // নোটিফিকেশনে ক্লিক করলে রিড হিসেবে মার্ক হবে
   const markAsRead = async (id: string, isRead: boolean, isGlobal: boolean) => {
-    if (isRead) return;
-    if (!user) return;
+    if (isRead || !user) return;
     
     if (isGlobal) {
-      // গ্লোবাল মেসেজের জন্য লোকাল স্টোরেজ আপডেট
       const readIds = JSON.parse(localStorage.getItem(`readAnnouncements_${user.uid}`) || "[]");
       if (!readIds.includes(id)) {
         readIds.push(id);
         localStorage.setItem(`readAnnouncements_${user.uid}`, JSON.stringify(readIds));
         setAnnouncements(prev => prev.map(a => a.id === id ? { ...a, isRead: true } : a));
-        window.dispatchEvent(new Event("announcementRead")); // বেল আইকনের কাউন্ট কমানোর ট্রিগার
+        window.dispatchEvent(new Event("announcementRead"));
       }
     } else {
-      // পার্সোনাল মেসেজের জন্য ফায়ারবেস আপডেট
       try {
         await updateDoc(doc(db, "notifications", id), { isRead: true });
       } catch (error) {
@@ -89,7 +105,6 @@ export default function NotificationsPage() {
   const markAllAsRead = async () => {
     if (!user) return;
 
-    // পার্সোনাল নোটিফিকেশন রিড করা
     const unreadPersonal = notifications.filter(n => !n.isRead);
     if (unreadPersonal.length > 0) {
       try {
@@ -101,7 +116,6 @@ export default function NotificationsPage() {
       }
     }
 
-    // গ্লোবাল অ্যানাউন্সমেন্ট রিড করা
     const unreadGlobal = announcements.filter(a => !a.isRead);
     if (unreadGlobal.length > 0) {
       const readIds = JSON.parse(localStorage.getItem(`readAnnouncements_${user.uid}`) || "[]");
@@ -149,7 +163,6 @@ export default function NotificationsPage() {
     return { icon: '💡', bg: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800/50' }; 
   };
 
-  // Safe Date Formatting Helper
   const formatTime = (timestamp: any) => {
     if (!timestamp) return "Just now";
     let dateObj;
@@ -164,7 +177,6 @@ export default function NotificationsPage() {
 
   if (!user) return null;
 
-  // মোট আনরিড কাউন্ট (গ্লোবাল এবং পার্সোনাল মিলিয়ে)
   const unreadCount = allMessages.filter(n => !n.isRead).length;
 
   return (
@@ -223,7 +235,6 @@ export default function NotificationsPage() {
                 <div 
                   key={notif.id} 
                   onClick={() => markAsRead(notif.id, notif.isRead, notif.isGlobal)}
-                  // আনরিড হলে ব্যাকগ্রাউন্ড নীল এবং ক্লিক্যাবল হবে
                   className={`p-4 md:p-6 flex items-start gap-4 transition-colors ${
                     !notif.isRead 
                       ? "cursor-pointer bg-blue-50/40 dark:bg-blue-950/30 hover:bg-blue-50/70 dark:hover:bg-blue-950/50" 
@@ -246,7 +257,6 @@ export default function NotificationsPage() {
                           </span>
                         )}
                       </div>
-                      {/* আনরিড হলে নীল রঙের ডট দেখাবে */}
                       {!notif.isRead && (
                         <span className="w-2.5 h-2.5 bg-blue-600 dark:bg-blue-400 rounded-full shrink-0 mt-1.5 shadow-sm"></span>
                       )}

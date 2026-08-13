@@ -194,20 +194,7 @@ export default function SettingsPage() {
         </div>
 
         {/* 2. Appearance Settings */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden transition-colors">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Appearance</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">Customize the look and feel of MindPulse.</p>
-          </div>
-          <div className="p-6">
-            <ToggleSwitch 
-              label="Dark Mode" 
-              description="Switch to a dark theme for a better viewing experience at night."
-              enabled={darkMode}
-              onChange={handleToggleDark}
-            />
-          </div>
-        </div>
+  
 
         {/* 3. Data & Privacy */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden transition-colors">

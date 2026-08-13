@@ -10,8 +10,33 @@ interface ActivityLog {
   action: string;
   details: string;
   type: "info" | "success" | "warning" | "danger";
-  createdAt: string;
+  createdAt: any;
 }
+
+// ১. নিরাপদভাবে তারিখ পার্স করার হেল্পার ফাংশন
+const parseDate = (raw: any): Date => {
+  if (!raw) return new Date();
+  
+  // Firestore Timestamp handling
+  if (typeof raw?.toDate === "function") return raw.toDate();
+  if (typeof raw?.toMillis === "function") return new Date(raw.toMillis());
+  if (raw?.seconds) return new Date(raw.seconds * 1000);
+  
+  // Normal string or number date
+  const parsed = new Date(raw);
+  return isNaN(parsed.getTime()) ? new Date() : parsed;
+};
+
+// ২. সুন্দর ও নিরাপদভাবে ডিসপ্লে করার ফরম্যাটার
+const formatLogDate = (rawDate: any) => {
+  const dateObj = parseDate(rawDate);
+  return dateObj.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
 export default function ActivityLogsPage() {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
@@ -27,10 +52,10 @@ export default function ActivityLogsPage() {
       const snap = await getDocs(collection(db, "activityLogs"));
       const logsList: ActivityLog[] = [];
       
-      snap.forEach((doc) => {
-        const data = doc.data();
+      snap.forEach((docSnap) => {
+        const data = docSnap.data();
         logsList.push({
-          id: doc.id,
+          id: docSnap.id,
           userName: data.userName || "System",
           action: data.action || "Unknown Action",
           details: data.details || "",
@@ -39,7 +64,8 @@ export default function ActivityLogsPage() {
         });
       });
 
-      logsList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      // নিরাপদ সর্টিং (নতুন থেকে পুরনো)
+      logsList.sort((a, b) => parseDate(b.createdAt).getTime() - parseDate(a.createdAt).getTime());
       setLogs(logsList);
     } catch (error) {
       console.error("Error fetching logs:", error);
@@ -150,7 +176,6 @@ export default function ActivityLogsPage() {
             <option value="info">General (Info)</option>
           </select>
 
-          {/* নতুন টেস্ট লগ বাটন */}
           <button 
             onClick={handleAddTestLog}
             disabled={isAddingTest}
@@ -195,7 +220,8 @@ export default function ActivityLogsPage() {
                         {log.userName} <span className="text-slate-500 dark:text-slate-400 font-medium mx-1">performed</span> {log.action}
                       </h4>
                       <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 whitespace-nowrap">
-                        {new Date(log.createdAt).toLocaleString("en-US", { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {/* নিরাপদ ডেট ফরম্যাটিং */}
+                        {formatLogDate(log.createdAt)}
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-300">
