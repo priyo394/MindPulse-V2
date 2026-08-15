@@ -17,7 +17,7 @@ export default function NotificationsPage() {
     return new Date(user.metadata.creationTime).getTime();
   }, [user]);
 
-  // আজকের দিন শুরু হওয়ার সময় (Midnight - 12:00 AM) বের করা
+  // আজকের দিন শুরু হওয়ার সময় (Midnight - 12:00 AM) বের করা
   const todayStart = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -88,7 +88,7 @@ export default function NotificationsPage() {
     );
   }, [notifications, announcements, userCreationTime]);
 
-  // ৫. আনরিড কাউন্ট হিসাব করা (নতুন ফিক্স: শুধুমাত্র আজকের বা তার পরের অপঠিত নোটিফিকেশনগুলো কাউন্ট হবে)
+  // ৫. আনরিড কাউন্ট হিসাব করা (শুধুমাত্র আজকের বা তার পরের নোটিফিকেশনগুলো কাউন্ট হবে)
   const unreadCount = useMemo(() => {
     return allMessages.filter(n => {
       if (n.isRead) return false;
@@ -96,6 +96,11 @@ export default function NotificationsPage() {
       return notifTime >= todayStart;
     }).length;
   }, [allMessages, todayStart]);
+
+  // ৬. মোট যেকোনো অপঠিত মেসেজ আছে কি না (Mark all as read বাটন দেখানোর জন্য)
+  const hasUnread = useMemo(() => {
+    return allMessages.some(n => !n.isRead);
+  }, [allMessages]);
 
   // নোটিফিকেশনে ক্লিক করলে রিড হিসেবে মার্ক হবে
   const markAsRead = async (id: string, isRead: boolean, isGlobal: boolean) => {
@@ -216,7 +221,7 @@ export default function NotificationsPage() {
             + Add Test Notification
           </button>
 
-          {unreadCount > 0 && (
+          {hasUnread && (
             <button 
               onClick={markAllAsRead}
               className="text-sm font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-4 py-2 rounded-lg transition border border-blue-100 dark:border-blue-800/50"
