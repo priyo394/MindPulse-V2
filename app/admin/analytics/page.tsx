@@ -32,11 +32,23 @@ export default function AnalyticsPage() {
 
         usersSnap.forEach((doc) => {
           const data = doc.data();
+          
           if (data.createdAt && data.createdAt !== "N/A") {
-            const dateObj = new Date(data.createdAt);
-            const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            
-            userDatesMap[formattedDate] = (userDatesMap[formattedDate] || 0) + 1;
+            let dateObj;
+
+            // ফায়ারবেস টাইমস্ট্যাম্প চেক করা হচ্ছে
+            if (typeof data.createdAt.toDate === 'function') {
+              dateObj = data.createdAt.toDate();
+            } else {
+              // সাধারণ স্ট্রিং বা মিলি-সেকেন্ড হলে
+              dateObj = new Date(data.createdAt);
+            }
+
+            // ডেট ভ্যালিড কিনা তা নিশ্চিত হয়ে ম্যাপে যোগ করা
+            if (!isNaN(dateObj.getTime())) {
+              const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              userDatesMap[formattedDate] = (userDatesMap[formattedDate] || 0) + 1;
+            }
           }
         });
 
@@ -44,6 +56,10 @@ export default function AnalyticsPage() {
           name: date,
           Users: userDatesMap[date]
         }));
+        
+        // চার্টের লাইন সুন্দর দেখানোর জন্য তারিখ অনুযায়ী সর্ট করে নেওয়া ভালো
+        formattedGrowthData.sort((a, b) => new Date(`${a.name} ${new Date().getFullYear()}`).getTime() - new Date(`${b.name} ${new Date().getFullYear()}`).getTime());
+        
         setGrowthData(formattedGrowthData);
 
         const checkinsSnap = await getDocs(collection(db, "checkins"));

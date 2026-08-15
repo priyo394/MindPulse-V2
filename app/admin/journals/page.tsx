@@ -45,12 +45,28 @@ export default function JournalReportsPage() {
           const data = doc.data();
           
           if (data.userId && usersMap[data.userId]) {
+            // FIX: Handle Firestore Timestamp properly here
+            let safeDateStr = new Date().toISOString(); // Default fallback
+            
+            if (data.createdAt) {
+              if (typeof data.createdAt.toDate === 'function') {
+                // If it's a Firestore Timestamp
+                safeDateStr = data.createdAt.toDate().toISOString();
+              } else {
+                // If it's already a string or milliseconds
+                const parsedDate = new Date(data.createdAt);
+                if (!isNaN(parsedDate.getTime())) {
+                  safeDateStr = parsedDate.toISOString();
+                }
+              }
+            }
+
             journalsList.push({
               id: doc.id,
               userId: data.userId,
               title: data.title || "Untitled Entry",
               content: data.content || data.text || "No content available.",
-              createdAt: data.createdAt || new Date().toISOString(),
+              createdAt: safeDateStr, // Now it is 100% a valid ISO string
               userName: usersMap[data.userId].name,
               userEmail: usersMap[data.userId].email,
             });
@@ -212,7 +228,7 @@ export default function JournalReportsPage() {
               <div>
                 <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">{selectedJournal.title}</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Written by <span className="font-bold text-slate-700 dark:text-slate-300">{selectedJournal.userName}</span> on {new Date(selectedJournal.createdAt).toLocaleString()}
+                  Written by <span className="font-bold text-slate-700 dark:text-slate-300">{selectedJournal.userName}</span> on {new Date(selectedJournal.createdAt).toLocaleString("en-US", { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
               <button 
