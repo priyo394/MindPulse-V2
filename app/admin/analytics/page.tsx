@@ -117,7 +117,7 @@ export default function AnalyticsPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={growthData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                     <Line type="monotone" dataKey="Users" stroke="#3b82f6" strokeWidth={3} dot={{ r: 5, fill: "#3b82f6" }} activeDot={{ r: 8 }} />
-                    <CartesianGrid stroke="#e2e8f0" dataKey="" className="dark:stroke-slate-800" strokeDasharray="5 5" vertical={false} />
+                   <CartesianGrid stroke="#e2e8f0" className="dark:stroke-slate-800" strokeDasharray="5 5" vertical={false} />
                     <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
                     <Tooltip 
