@@ -11,11 +11,27 @@ export default function NotificationsPage() {
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ১. ইউজারের একাউন্ট তৈরির সময় বের করা (সরাসরি Auth থেকে, যা সবচেয়ে ফাস্ট এবং রিলায়েবল)
+  // ১. ইউজারের একাউন্ট তৈরির সময় বের করা (সরাসরি Auth থেকে, যা সবচেয়ে ফাস্ট এবং রিলায়েবল)
   const userCreationTime = useMemo(() => {
     if (!user?.metadata?.creationTime) return 0;
     return new Date(user.metadata.creationTime).getTime();
   }, [user]);
+
+  // আজকের দিন শুরু হওয়ার সময় (Midnight - 12:00 AM) বের করা
+  const todayStart = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }, []);
+
+  // টাইমস্ট্যাম্প কনভার্ট করার হেল্পার ফাংশন
+  const getTime = (timestamp: any) => {
+    if (!timestamp) return 0;
+    if (typeof timestamp.toMillis === "function") return timestamp.toMillis();
+    if (typeof timestamp.toDate === "function") return timestamp.toDate().getTime();
+    if (timestamp.seconds) return timestamp.seconds * 1000;
+    return new Date(timestamp).getTime() || 0;
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -56,30 +72,30 @@ export default function NotificationsPage() {
     };
   }, [user]);
 
-  // ৪. ডেটা ফিল্টার এবং সর্ট করা (আসল ফিক্সটি এখানে করা হয়েছে)
+  // ৪. ডেটা ফিল্টার এবং সর্ট করা
   const allMessages = useMemo(() => {
-    const getTime = (timestamp: any) => {
-      if (!timestamp) return 0;
-      if (typeof timestamp.toMillis === "function") return timestamp.toMillis();
-      if (typeof timestamp.toDate === "function") return timestamp.toDate().getTime();
-      if (timestamp.seconds) return timestamp.seconds * 1000;
-      return new Date(timestamp).getTime() || 0;
-    };
-
     // শুধুমাত্র গ্লোবাল অ্যানাউন্সমেন্টগুলো ফিল্টার করা
     const filteredAnnouncements = announcements.filter(ann => {
-      if (!ann.createdAt) return false; // ডাটাবেজে createdAt না থাকলে (খুব পুরোনো ডেটা হলে) হাইড করে দিবে
+      if (!ann.createdAt) return false; // ডাটাবেজে createdAt না থাকলে হাইড করে দিবে
       const annTime = getTime(ann.createdAt);
-      // একাউন্ট খোলার আগের অ্যানাউন্সমেন্ট বাদ দেওয়া হবে। (৬০ সেকেন্ডের বাফার রাখা হলো সেইফটির জন্য)
+      // একাউন্ট খোলার আগের অ্যানাউন্সমেন্ট বাদ দেওয়া হবে। (৬০ সেকেন্ডের বাফার রাখা হলো)
       return userCreationTime === 0 ? true : annTime >= (userCreationTime - 60000); 
     });
 
-    // পার্সোনাল নোটিফিকেশন এবং ফিল্টার করা অ্যানাউন্সমেন্ট একসাথে করে সময় অনুযায়ী সাজানো
+    // পার্সোনাল নোটিফিকেশন এবং ফিল্টার করা অ্যানাউন্সমেন্ট একসাথে করে সময় অনুযায়ী সাজানো
     return [...notifications, ...filteredAnnouncements].sort(
       (a, b) => getTime(b.createdAt) - getTime(a.createdAt)
     );
   }, [notifications, announcements, userCreationTime]);
 
+  // ৫. আনরিড কাউন্ট হিসাব করা (নতুন ফিক্স: শুধুমাত্র আজকের বা তার পরের অপঠিত নোটিফিকেশনগুলো কাউন্ট হবে)
+  const unreadCount = useMemo(() => {
+    return allMessages.filter(n => {
+      if (n.isRead) return false;
+      const notifTime = getTime(n.createdAt);
+      return notifTime >= todayStart;
+    }).length;
+  }, [allMessages, todayStart]);
 
   // নোটিফিকেশনে ক্লিক করলে রিড হিসেবে মার্ক হবে
   const markAsRead = async (id: string, isRead: boolean, isGlobal: boolean) => {
@@ -176,8 +192,6 @@ export default function NotificationsPage() {
   };
 
   if (!user) return null;
-
-  const unreadCount = allMessages.filter(n => !n.isRead).length;
 
   return (
     <div className="p-4 md:p-8 w-full max-w-4xl mx-auto transition-colors duration-200">
