@@ -11,18 +11,11 @@ export default function NotificationsPage() {
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ১. ইউজারের একাউন্ট তৈরির সময় বের করা (সরাসরি Auth থেকে, যা সবচেয়ে ফাস্ট এবং রিলায়েবল)
+  // ইউজারের একাউন্ট তৈরির সময় বের করা
   const userCreationTime = useMemo(() => {
     if (!user?.metadata?.creationTime) return 0;
     return new Date(user.metadata.creationTime).getTime();
   }, [user]);
-
-  // আজকের দিন শুরু হওয়ার সময় (Midnight - 12:00 AM) বের করা
-  const todayStart = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d.getTime();
-  }, []);
 
   // টাইমস্ট্যাম্প কনভার্ট করার হেল্পার ফাংশন
   const getTime = (timestamp: any) => {
@@ -36,7 +29,7 @@ export default function NotificationsPage() {
   useEffect(() => {
     if (!user) return;
 
-    // ২. পার্সোনাল নোটিফিকেশন ফেচ করা
+    // ১. পার্সোনাল নোটিফিকেশন ফেচ করা
     const qNotif = query(
       collection(db, "notifications"),
       where("userId", "==", user.uid)
@@ -51,17 +44,20 @@ export default function NotificationsPage() {
       setNotifications(notifData);
     });
 
-    // ৩. গ্লোবাল অ্যানাউন্সমেন্ট ফেচ করা (এখানে কোনো ফিল্টার হবে না, শুধু ফেচ হবে)
+    // ২. গ্লোবাল অ্যানাউন্সমেন্ট ফেচ করা এবং লোকাল স্টোরেজ থেকে রিড স্ট্যাটাস সিঙ্ক করা
     const qAnnounce = query(collection(db, "announcements"));
 
     const unsubscribeAnnounce = onSnapshot(qAnnounce, (snapshot) => {
       const readIds = JSON.parse(localStorage.getItem(`readAnnouncements_${user.uid}`) || "[]");
-      const annData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        isGlobal: true, 
-        isRead: readIds.includes(doc.id)
-      }));
+      const annData = snapshot.docs.map(doc => {
+        const docId = doc.id;
+        return {
+          id: docId,
+          ...doc.data(),
+          isGlobal: true, 
+          isRead: readIds.includes(docId)
+        };
+      });
       setAnnouncements(annData);
       setIsLoading(false);
     });
@@ -72,53 +68,53 @@ export default function NotificationsPage() {
     };
   }, [user]);
 
-  // ৪. ডেটা ফিল্টার এবং সর্ট করা
+  // ডেটা ফিল্টার এবং সর্ট করা
   const allMessages = useMemo(() => {
-    // শুধুমাত্র গ্লোবাল অ্যানাউন্সমেন্টগুলো ফিল্টার করা
     const filteredAnnouncements = announcements.filter(ann => {
-      if (!ann.createdAt) return false; // ডাটাবেজে createdAt না থাকলে হাইড করে দিবে
+      if (!ann.createdAt) return false;
       const annTime = getTime(ann.createdAt);
-      // একাউন্ট খোলার আগের অ্যানাউন্সমেন্ট বাদ দেওয়া হবে। (৬০ সেকেন্ডের বাফার রাখা হলো)
       return userCreationTime === 0 ? true : annTime >= (userCreationTime - 60000); 
     });
 
-    // পার্সোনাল নোটিফিকেশন এবং ফিল্টার করা অ্যানাউন্সমেন্ট একসাথে করে সময় অনুযায়ী সাজানো
     return [...notifications, ...filteredAnnouncements].sort(
       (a, b) => getTime(b.createdAt) - getTime(a.createdAt)
     );
   }, [notifications, announcements, userCreationTime]);
 
-  // ৫. আনরিড কাউন্ট হিসাব করা (শুধুমাত্র আজকের বা তার পরের নোটিফিকেশনগুলো কাউন্ট হবে)
+  // আনরিড কাউন্ট হিসাব করা
   const unreadCount = useMemo(() => {
-    return allMessages.filter(n => {
-      if (n.isRead) return false;
-      const notifTime = getTime(n.createdAt);
-      return notifTime >= todayStart;
-    }).length;
-  }, [allMessages, todayStart]);
+    return allMessages.filter(n => !n.isRead).length;
+  }, [allMessages]);
 
-  // ৬. মোট যেকোনো অপঠিত মেসেজ আছে কি না (Mark all as read বাটন দেখানোর জন্য)
   const hasUnread = useMemo(() => {
     return allMessages.some(n => !n.isRead);
   }, [allMessages]);
 
-  // নোটিফিকেশনে ক্লিক করলে রিড হিসেবে মার্ক হবে
+  // নোটিফিকেশনে ক্লিক করলে রিড হিসেবে মার্ক হবে (Optimistic UI + Database Update)
   const markAsRead = async (id: string, isRead: boolean, isGlobal: boolean) => {
     if (isRead || !user) return;
     
     if (isGlobal) {
-      const readIds = JSON.parse(localStorage.getItem(`readAnnouncements_${user.uid}`) || "[]");
+      const storageKey = `readAnnouncements_${user.uid}`;
+      const readIds = JSON.parse(localStorage.getItem(storageKey) || "[]");
       if (!readIds.includes(id)) {
         readIds.push(id);
-        localStorage.setItem(`readAnnouncements_${user.uid}`, JSON.stringify(readIds));
+        localStorage.setItem(storageKey, JSON.stringify(readIds));
+        
+        // তাৎক্ষণিকভাবে স্টেট আপডেট
         setAnnouncements(prev => prev.map(a => a.id === id ? { ...a, isRead: true } : a));
         window.dispatchEvent(new Event("announcementRead"));
       }
     } else {
+      // ১. প্রথমে লোকাল স্টেট আপডেট করা যাতে UI সাথে সাথে বদলে যায়
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+
+      // ২. এরপর ফায়ারস্টোরে আপডেট পাঠানো
       try {
-        await updateDoc(doc(db, "notifications", id), { isRead: true });
+        const notifRef = doc(db, "notifications", id);
+        await updateDoc(notifRef, { isRead: true });
       } catch (error) {
-        console.error("Error updating notification:", error);
+        console.error("Error updating notification in Firestore:", error);
       }
     }
   };
@@ -126,22 +122,29 @@ export default function NotificationsPage() {
   const markAllAsRead = async () => {
     if (!user) return;
 
+    // পার্সোনাল নোটিফিকেশন রিড করা
     const unreadPersonal = notifications.filter(n => !n.isRead);
     if (unreadPersonal.length > 0) {
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       try {
         const batch = writeBatch(db);
-        unreadPersonal.forEach(notif => batch.update(doc(db, "notifications", notif.id), { isRead: true }));
+        unreadPersonal.forEach(notif => {
+          const notifRef = doc(db, "notifications", notif.id);
+          batch.update(notifRef, { isRead: true });
+        });
         await batch.commit();
       } catch (error) {
-        console.error("Error marking all as read:", error);
+        console.error("Error marking all as read in Firestore:", error);
       }
     }
 
+    // গ্লোবাল অ্যানাউন্সমেন্ট রিড করা
     const unreadGlobal = announcements.filter(a => !a.isRead);
     if (unreadGlobal.length > 0) {
-      const readIds = JSON.parse(localStorage.getItem(`readAnnouncements_${user.uid}`) || "[]");
+      const storageKey = `readAnnouncements_${user.uid}`;
+      const readIds = JSON.parse(localStorage.getItem(storageKey) || "[]");
       unreadGlobal.forEach(a => { if (!readIds.includes(a.id)) readIds.push(a.id); });
-      localStorage.setItem(`readAnnouncements_${user.uid}`, JSON.stringify(readIds));
+      localStorage.setItem(storageKey, JSON.stringify(readIds));
       setAnnouncements(prev => prev.map(a => ({ ...a, isRead: true })));
       window.dispatchEvent(new Event("announcementRead"));
     }
@@ -271,7 +274,7 @@ export default function NotificationsPage() {
                           {notif.title}
                         </h4>
                         {notif.isGlobal && (
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-md border border-blue-100 dark:border-blue-800/50 flex items-center gap-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-md border border-blue-100 dark:border-blue-800/50 flex-center gap-1">
                             📢 Broadcast
                           </span>
                         )}

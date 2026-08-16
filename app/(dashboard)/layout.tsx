@@ -20,8 +20,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [currentDate, setCurrentDate] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   
-  const [unreadPersonal, setUnreadPersonal] = useState<number>(0);
-  const [unreadGlobal, setUnreadGlobal] = useState<number>(0);
+  const [totalUnreadCount, setTotalUnreadCount] = useState<number>(0);
   const [appSettings, setAppSettings] = useState<any>(null);
 
   useEffect(() => {
@@ -37,7 +36,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       });
       setCurrentDate(formattedDate);
 
-      // ১. ইউজার অ্যাকাউন্ট তৈরির তারিখ বের করার শক্তিশালী লজিক
+      const getTime = (timestamp: any) => {
+        if (!timestamp) return 0;
+        if (typeof timestamp.toMillis === "function") return timestamp.toMillis();
+        if (typeof timestamp.toDate === "function") return timestamp.toDate().getTime();
+        if (timestamp.seconds) return timestamp.seconds * 1000;
+        return new Date(timestamp).getTime() || 0;
+      };
+
       let userCreationMillis = 0;
       if (user?.metadata?.creationTime) {
         userCreationMillis = new Date(user.metadata.creationTime).getTime();
@@ -69,15 +75,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             setUserName(user.email?.split("@")[0] || "User");
           }
 
-          // যদি Auth metadata তে তারিখ না থাকে, তবে Firestore Profile-এর createdAt নেওয়া হবে
           if (!userCreationMillis && userData?.createdAt) {
-            if (typeof userData.createdAt.toMillis === "function") {
-              userCreationMillis = userData.createdAt.toMillis();
-            } else if (userData.createdAt.seconds) {
-              userCreationMillis = userData.createdAt.seconds * 1000;
-            } else {
-              userCreationMillis = new Date(userData.createdAt).getTime();
-            }
+            userCreationMillis = getTime(userData.createdAt);
           }
         } catch (error) {
           console.error("Error checking user status:", error);
@@ -86,65 +85,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       
       fetchUserProfile();
 
-      // ২. পার্সোনাল আনরিড নোটিফিকেশন ফেচ করা
-      const notificationsQuery = query(
-        collection(db, "notifications"),
-        where("userId", "==", user.uid),
-        where("isRead", "==", false)
-      );
+      let personalNotifications: any[] = [];
+      let globalAnnouncements: any[] = [];
 
-      const unsubscribeNotifications = onSnapshot(notificationsQuery, (snapshot) => {
-        const count = snapshot.docs.length;
-        console.log("🔍 Personal Unread Notifications:", count);
-        setUnreadPersonal(count);
-      });
-
-      // টাইমস্ট্যাম্প কনভার্ট করার জন্য হেল্পার ফাংশন
-      const getTime = (timestamp: any) => {
-        if (!timestamp) return 0;
-        if (typeof timestamp.toMillis === "function") return timestamp.toMillis();
-        if (typeof timestamp.toDate === "function") return timestamp.toDate().getTime();
-        if (timestamp.seconds) return timestamp.seconds * 1000;
-        return new Date(timestamp).getTime() || 0;
-      };
-
-      // ৩. গ্লোবাল অ্যানাউন্সমেন্ট ফেচ ও ফিল্টারিং
-      let fetchedAnnouncements: any[] = [];
-      const updateGlobalCount = () => {
-        const readIds = JSON.parse(localStorage.getItem(`readAnnouncements_${user.uid}`) || "[]");
-        
-        const unread = fetchedAnnouncements.filter(docSnap => {
-          const annId = docSnap.id;
-          const annData = docSnap.data();
-
-          // ইতিমধ্যে পড়া থাকলে বাদ
-          if (readIds.includes(annId)) return false;
-
-          // অ্যাকাউন্ট তৈরির আগের অ্যানাউন্সমেন্ট হলে বাদ
-          if (userCreationMillis > 0) {
-            const annTime = getTime(annData.createdAt);
-            // অ্যানাউন্সমেন্ট তৈরির সময় ইউজার সাইনআপের আগের হলে বাদ যাবে
-            if (annTime > 0 && annTime < userCreationMillis - 60000) {
-              return false;
-            }
-          }
-
-          return true;
+      const calculateTotalUnread = () => {
+        const unreadPersonal = personalNotifications.filter(n => {
+          if (n.isRead) return false;
+          const notifTime = getTime(n.createdAt);
+          return userCreationMillis === 0 ? true : notifTime >= (userCreationMillis - 60000);
         });
 
-        console.log("🔍 Global Unread Announcements:", unread.length);
-        setUnreadGlobal(unread.length);
+        const readIds = JSON.parse(localStorage.getItem(`readAnnouncements_${user.uid}`) || "[]");
+        const unreadGlobal = globalAnnouncements.filter(ann => {
+          if (!ann.createdAt) return false;
+          if (readIds.includes(ann.id)) return false;
+          const annTime = getTime(ann.createdAt);
+          return userCreationMillis === 0 ? true : annTime >= (userCreationMillis - 60000);
+        });
+
+        setTotalUnreadCount(unreadPersonal.length + unreadGlobal.length);
       };
 
-      const announcementsQuery = query(collection(db, "announcements"));
-      const unsubscribeAnnouncements = onSnapshot(announcementsQuery, (snapshot) => {
-        fetchedAnnouncements = snapshot.docs;
-        updateGlobalCount();
+      const qNotif = query(collection(db, "notifications"), where("userId", "==", user.uid));
+      const unsubscribeNotif = onSnapshot(qNotif, (snapshot) => {
+        personalNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        calculateTotalUnread();
       });
 
-      window.addEventListener("announcementRead", updateGlobalCount);
+      const qAnnounce = query(collection(db, "announcements"));
+      const unsubscribeAnnounce = onSnapshot(qAnnounce, (snapshot) => {
+        globalAnnouncements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        calculateTotalUnread();
+      });
 
-      // ৪. গ্লোবাল সেটিংস ফেচ করা
+      const handleStorageChange = () => calculateTotalUnread();
+      window.addEventListener("storage", handleStorageChange);
+      window.addEventListener("announcementRead", handleStorageChange);
+
       const unsubscribeSettings = onSnapshot(doc(db, "settings", "global"), (docSnap) => {
         if (docSnap.exists()) {
           setAppSettings(docSnap.data());
@@ -152,10 +129,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       });
 
       return () => {
-        unsubscribeNotifications();
-        unsubscribeAnnouncements();
+        unsubscribeNotif();
+        unsubscribeAnnounce();
         unsubscribeSettings();
-        window.removeEventListener("announcementRead", updateGlobalCount);
+        window.removeEventListener("storage", handleStorageChange);
+        window.removeEventListener("announcementRead", handleStorageChange);
       };
     }
   }, [user, loading, router]);
@@ -172,8 +150,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
     );
   }
-
-  const totalUnreadCount = unreadPersonal + unreadGlobal;
 
   return (
     <div className="min-h-screen bg-[#f8fafc] dark:bg-slate-950 flex font-sans text-slate-800 dark:text-slate-100 overflow-hidden transition-colors duration-200">
@@ -267,7 +243,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             
             <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1"></div>
 
-            {/* Dynamic Notification Bell */}
+            {/* Notification Bell with Dynamic Count */}
             <Link href="/notifications" className="relative p-2 bg-slate-50 dark:bg-slate-800 rounded-full shadow-sm border border-slate-100 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition block">
               <svg className="w-5 h-5 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
               {totalUnreadCount > 0 && (
