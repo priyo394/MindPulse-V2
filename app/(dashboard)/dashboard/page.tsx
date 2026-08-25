@@ -61,7 +61,7 @@ export default function Dashboard() {
         }
       });
 
-      // ২. গত ৭ দিনের Check-ins ফেচ (Weekly Overview & Mood Trend এর জন্য)
+      // ২. গত ৭ দিনের Check-ins ফেচ
       const weeklyQuery = query(
         collection(db, "checkins"),
         where("userId", "==", user.uid)
@@ -114,15 +114,61 @@ export default function Dashboard() {
     }
   }, [user]);
 
-  // অটো-স্লাইডার লজিক
+  // 🎯 ইউজারের আজকের কন্ডিশনের উপর ভিত্তি করে টিপস ফিল্টার করা
+  const relevantTips = useMemo(() => {
+    if (wellnessTips.length === 0) return [];
+    
+    // ইউজার যদি আজ চেক-ইন না করে থাকে, তবে সাধারণ (All) টিপস দেখাবে
+    if (!todayCheckIn) {
+      const generalTips = wellnessTips.filter(t => 
+        t.targetMood === "All" && t.targetStress === "all" && t.targetSleep === "all"
+      );
+      return generalTips.length > 0 ? generalTips : wellnessTips;
+    }
+
+    const mood = todayCheckIn.mood; // Great, Good, Okay, Low
+    const stress = Number(todayCheckIn.stressLevel || 5); // 1 to 10
+    const sleep = Number(todayCheckIn.sleepHours || 7);
+
+    // স্ট্রেস লেভেল কনভার্ট করা (অ্যাডমিন প্যানেলের ক্যাটাগরি অনুযায়ী)
+    let stressCat = "medium";
+    if (stress <= 3) stressCat = "low";
+    else if (stress >= 7) stressCat = "high";
+
+    // স্লিপ আওয়ার কনভার্ট করা
+    let sleepCat = "optimal";
+    if (sleep < 6) sleepCat = "low";
+    else if (sleep > 8) sleepCat = "high";
+
+    // ফিল্টারিং লজিক
+    const filtered = wellnessTips.filter(tip => {
+      const moodMatch = tip.targetMood === "All" || tip.targetMood === mood;
+      const stressMatch = tip.targetStress === "all" || tip.targetStress === stressCat;
+      const sleepMatch = tip.targetSleep === "all" || tip.targetSleep === sleepCat;
+      
+      return moodMatch && stressMatch && sleepMatch;
+    });
+
+    // স্পেসিফিক কোনো টিপস না পেলে জেনারেল (All) টিপস দেখাবে
+    if (filtered.length > 0) return filtered;
+    
+    const fallbackTips = wellnessTips.filter(t => 
+      t.targetMood === "All" && t.targetStress === "all" && t.targetSleep === "all"
+    );
+    
+    return fallbackTips.length > 0 ? fallbackTips : wellnessTips;
+  }, [wellnessTips, todayCheckIn]);
+
+  // অটো-স্লাইডার লজিক (শুধুমাত্র relevantTips এর উপর কাজ করবে)
   useEffect(() => {
-    if (wellnessTips.length > 1) {
+    setCurrentTipIndex(0); // টিপস আপডেট হলে স্লাইডার ০ থেকে শুরু হবে
+    if (relevantTips.length > 1) {
       const interval = setInterval(() => {
-        setCurrentTipIndex((prevIndex) => (prevIndex + 1) % wellnessTips.length);
+        setCurrentTipIndex((prevIndex) => (prevIndex + 1) % relevantTips.length);
       }, 7000);
       return () => clearInterval(interval);
     }
-  }, [wellnessTips]);
+  }, [relevantTips]);
 
   // Weekly Overview হিসাব করার লজিক
   const weeklyStats = useMemo(() => {
@@ -175,7 +221,7 @@ export default function Dashboard() {
     };
   }, [weeklyCheckIns]);
 
-  // Mood Trend (গত ৭ দিনের চার্ট ডেটা)
+  // Mood Trend
   const last7DaysData = useMemo(() => {
     const days = [];
     const moodHeights: Record<string, number> = { Great: 100, Good: 75, Okay: 50, Low: 25 };
@@ -283,23 +329,23 @@ export default function Dashboard() {
         <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between transition-colors">
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">Daily Wellness Tips</h3>
+              <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">Personalized Tips</h3>
               <span className="text-[10px] font-bold uppercase tracking-wider text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded-md border border-green-100 dark:border-green-800/50 flex items-center gap-1.5 shadow-sm">
                 <span className="w-1.5 h-1.5 bg-green-500 dark:bg-green-400 rounded-full animate-pulse"></span> Live
               </span>
             </div>
-           
+            
             <div className="bg-green-50/50 dark:bg-green-900/10 rounded-xl p-5 border border-green-100 dark:border-green-900/30 flex gap-4 min-h-[140px] items-center relative overflow-hidden group">
               <span className="text-green-600 dark:text-green-400 text-3xl shrink-0 transition-transform duration-300 group-hover:scale-110">
-                {wellnessTips.length > 0 && wellnessTips[currentTipIndex]?.icon ? wellnessTips[currentTipIndex].icon : "💡"}
+                {relevantTips.length > 0 && relevantTips[currentTipIndex]?.icon ? relevantTips[currentTipIndex].icon : "💡"}
               </span>
-             
+              
               <div className="flex-1">
-                {wellnessTips.length > 0 ? (
+                {relevantTips.length > 0 ? (
                   <div key={currentTipIndex} className="animate-pulse-once">
-                    <h4 className="font-bold text-slate-800 dark:text-slate-100 text-base mb-1.5">{wellnessTips[currentTipIndex].title}</h4>
+                    <h4 className="font-bold text-slate-800 dark:text-slate-100 text-base mb-1.5">{relevantTips[currentTipIndex].title}</h4>
                     <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed font-medium">
-                      {wellnessTips[currentTipIndex].content || wellnessTips[currentTipIndex].description}
+                      {relevantTips[currentTipIndex].content || relevantTips[currentTipIndex].description}
                     </p>
                   </div>
                 ) : (
@@ -312,9 +358,9 @@ export default function Dashboard() {
             </div>
 
             {/* Slider Navigation Dots */}
-            {wellnessTips.length > 1 && (
+            {relevantTips.length > 1 && (
               <div className="flex justify-center gap-2 mt-5">
-                {wellnessTips.map((_, idx) => (
+                {relevantTips.map((_, idx) => (
                   <button
                     key={idx}
                     onClick={() => setCurrentTipIndex(idx)}
@@ -422,7 +468,7 @@ export default function Dashboard() {
             <svg className="w-5 h-5 text-slate-700 dark:text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
             <h3 className="font-bold text-lg">Recent Journal Entries</h3>
           </div>
-         
+          
           <div className="flex-1 flex flex-col items-center justify-center py-6 text-center">
             {recentJournals.length === 0 ? (
               <>
@@ -439,7 +485,7 @@ export default function Dashboard() {
                 ))}
               </div>
             )}
-           
+            
             <Link
               href="/journal"
               className="inline-flex items-center gap-2 border-2 border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-6 py-2 rounded-lg font-semibold text-sm transition"
@@ -456,7 +502,7 @@ export default function Dashboard() {
             <svg className="w-5 h-5 text-slate-700 dark:text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
             <h3 className="font-bold text-lg">Quick Actions</h3>
           </div>
-         
+          
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => setIsModalOpen(true)}
@@ -465,7 +511,7 @@ export default function Dashboard() {
               <svg className="w-6 h-6 mb-2" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
               <span className="font-semibold text-sm">Daily Check-In</span>
             </button>
-           
+            
             <Link href="/chat" className="flex flex-col items-center justify-center p-4 rounded-xl bg-teal-50 dark:bg-teal-900/10 text-teal-600 dark:text-teal-400 border border-teal-100 dark:border-teal-900/30 hover:bg-teal-100 dark:hover:bg-teal-900/30 transition">
               <svg className="w-6 h-6 mb-2" fill="currentColor" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
               <span className="font-semibold text-sm">AI Assistant</span>

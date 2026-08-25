@@ -1,88 +1,86 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../../context/AuthContext";
+import { db } from "../../../lib/firebase"; 
+import { collection, getDocs } from "firebase/firestore";
 
-// টিপসের ক্যাটাগরি এবং ডেটা
-const CATEGORIES = ["All", "Sleep", "Stress", "Mindfulness", "Productivity"];
+// ক্যাটাগরিগুলো অ্যাডমিন প্যানেলের টার্গেটের সাথে মিলিয়ে সাজানো হয়েছে
+const CATEGORIES = ["All", "Mood", "Stress", "Sleep"];
 
-const WELLNESS_TIPS = [
-  { 
-    id: 1, 
-    title: "The 4-7-8 Breathing Technique", 
-    category: "Stress", 
-    desc: "Inhale for 4 seconds, hold your breath for 7 seconds, and exhale completely for 8 seconds. This helps calm the nervous system and reduce anxiety.", 
-    icon: "😮‍💨", 
-    color: "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900/50" 
-  },
-  { 
-    id: 2, 
-    title: "Digital Detox Before Bed", 
-    category: "Sleep", 
-    desc: "Turn off all screens at least 1 hour before bed. The blue light from phones and laptops disrupts melatonin production, making it harder to fall asleep.", 
-    icon: "📱", 
-    color: "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/50" 
-  },
-  { 
-    id: 3, 
-    title: "5-Minute Gratitude Journal", 
-    category: "Mindfulness", 
-    desc: "Start your day by writing down 3 things you are grateful for. This simple practice shifts your focus from negative to positive.", 
-    icon: "✍️", 
-    color: "bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400 border-green-100 dark:border-green-800/50" 
-  },
-  { 
-    id: 4, 
-    title: "The Pomodoro Technique", 
-    category: "Productivity", 
-    desc: "Work for 25 minutes with full focus, then take a 5-minute break. This prevents mental burnout and keeps your productivity high.", 
-    icon: "⏱️", 
-    color: "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 border-orange-100 dark:border-orange-800/50" 
-  },
-  { 
-    id: 5, 
-    title: "Progressive Muscle Relaxation", 
-    category: "Stress", 
-    desc: "Slowly tense and then release each muscle group in your body, starting from your toes up to your head. Great for releasing physical tension.", 
-    icon: "🧘", 
-    color: "bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border-red-100 dark:border-red-800/50" 
-  },
-  { 
-    id: 6, 
-    title: "Optimal Hydration", 
-    category: "Mindfulness", 
-    desc: "Dehydration can cause fatigue, headaches, and even anxiety. Keep a water bottle nearby and aim for at least 8 glasses a day.", 
-    icon: "💧", 
-    color: "bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 border-cyan-100 dark:border-cyan-800/50" 
-  },
-  { 
-    id: 7, 
-    title: "Morning Sunlight Exposure", 
-    category: "Sleep", 
-    desc: "Get 10-15 minutes of natural sunlight within an hour of waking up. It resets your circadian rhythm and improves night-time sleep.", 
-    icon: "☀️", 
-    color: "bg-yellow-50 dark:bg-yellow-950/40 text-yellow-600 dark:text-yellow-400 border-yellow-100 dark:border-yellow-800/50" 
-  },
-  { 
-    id: 8, 
-    title: "Declutter Your Workspace", 
-    category: "Productivity", 
-    desc: "A cluttered desk leads to a cluttered mind. Take 5 minutes at the end of the day to organize your workspace for a fresh start tomorrow.", 
-    icon: "🧹", 
-    color: "bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border-purple-100 dark:border-purple-800/50" 
-  }
-];
+interface WellnessTip {
+  id: string;
+  title: string;
+  content: string;
+  targetMood: string;
+  targetStress: string;
+  targetSleep: string;
+  createdAt: string;
+}
+
+// টিপসগুলোকে সুন্দর দেখানোর জন্য কিছু ডিফল্ট আইকন ও কালার স্টাইল
+const getTipStyle = (index: number) => {
+  const styles = [
+    { icon: "😮‍💨", color: "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900/50" },
+    { icon: "📱", color: "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/50" },
+    { icon: "✍️", color: "bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400 border-green-100 dark:border-green-800/50" },
+    { icon: "⏱️", color: "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 border-orange-100 dark:border-orange-800/50" },
+    { icon: "🧘", color: "bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border-red-100 dark:border-red-800/50" },
+    { icon: "💧", color: "bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 border-cyan-100 dark:border-cyan-800/50" },
+    { icon: "☀️", color: "bg-yellow-50 dark:bg-yellow-950/40 text-yellow-600 dark:text-yellow-400 border-yellow-100 dark:border-yellow-800/50" },
+  ];
+  return styles[index % styles.length];
+};
 
 export default function WellnessTipsPage() {
   const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState("All");
+  const [tips, setTips] = useState<WellnessTip[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // ফায়ারবেস থেকে অ্যাডমিনের দেওয়া টিপস ফেচ করা
+  useEffect(() => {
+    const fetchTips = async () => {
+      try {
+        const tipsSnap = await getDocs(collection(db, "wellnessTips"));
+        const tipsList: WellnessTip[] = [];
+        
+        tipsSnap.forEach((doc) => {
+          const data = doc.data();
+          tipsList.push({
+            id: doc.id,
+            title: data.title || "No Title",
+            content: data.content || "No Content",
+            targetMood: data.targetMood || "All",
+            targetStress: data.targetStress || "all",
+            targetSleep: data.targetSleep || "all",
+            createdAt: data.createdAt || new Date().toISOString(),
+          });
+        });
+
+        // নতুন টিপসগুলো আগে দেখানোর জন্য সর্টিং
+        tipsList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setTips(tipsList);
+      } catch (error) {
+        console.error("Error fetching tips:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTips();
+  }, []);
 
   if (!user) return null;
 
-  // ক্যাটাগরি অনুযায়ী ফিল্টার করা
-  const filteredTips = activeCategory === "All" 
-    ? WELLNESS_TIPS 
-    : WELLNESS_TIPS.filter(tip => tip.category === activeCategory);
+  // ক্যাটাগরি অনুযায়ী ফিল্টার করা (অ্যাডমিনের সেট করা টার্গেটের উপর ভিত্তি করে)
+  const filteredTips = tips.filter(tip => {
+    if (activeCategory === "All") return true;
+    if (activeCategory === "Mood") return tip.targetMood !== "All";
+    if (activeCategory === "Stress") return tip.targetStress !== "all";
+    if (activeCategory === "Sleep") return tip.targetSleep !== "all";
+    return true;
+  });
 
   return (
     <div className="p-4 md:p-8 w-full max-w-7xl mx-auto transition-colors duration-200">
@@ -91,7 +89,7 @@ export default function WellnessTipsPage() {
       <header className="mb-8">
         <div className="flex items-center gap-3 mb-2">
            <div className="w-10 h-10 bg-teal-100 dark:bg-teal-900/30 rounded-xl flex items-center justify-center text-teal-600 dark:text-teal-400 text-xl shadow-sm border border-teal-200 dark:border-teal-800/50">
-             🌿
+              🌿
            </div>
            <h2 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-100">Wellness Tips</h2>
         </div>
@@ -129,32 +127,51 @@ export default function WellnessTipsPage() {
         ))}
       </div>
 
-      {/* Tips Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-10">
-        {filteredTips.map(tip => (
-          <div key={tip.id} className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col h-full group">
+      {/* Loading State & Tips Grid */}
+      {loading ? (
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-600 dark:border-teal-400"></div>
+        </div>
+      ) : filteredTips.length === 0 ? (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 p-12 text-center text-slate-400 dark:text-slate-500 font-medium shadow-sm transition-colors">
+          No wellness tips available for this category right now. Check back later!
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-10">
+          {filteredTips.map((tip, index) => {
+            const style = getTipStyle(index); // আইকন এবং কালার ডায়নামিক করা হয়েছে
             
-            <div className="flex justify-between items-start mb-4">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl border ${tip.color} group-hover:scale-110 transition-transform duration-300`}>
-                {tip.icon}
+            return (
+              <div key={tip.id} className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col h-full group">
+                
+                <div className="flex justify-between items-start mb-4">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl border ${style.color} group-hover:scale-110 transition-transform duration-300`}>
+                    {style.icon}
+                  </div>
+                  
+                  {/* ব্যাজ (Badge) - ডাটাবেসের ডেটা অনুযায়ী */}
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1 rounded-md border border-slate-100 dark:border-slate-800">
+                    {tip.targetMood !== "All" ? `Mood: ${tip.targetMood}` : 
+                     tip.targetStress !== "all" ? `Stress` : 
+                     tip.targetSleep !== "all" ? `Sleep` : "General"}
+                  </span>
+                </div>
+                
+                <div className="flex-1">
+                  <h3 className="font-bold text-slate-800 dark:text-slate-100 text-lg mb-2 leading-tight group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                    {tip.title}
+                  </h3>
+                  {/* tip.desc এর বদলে tip.content কারণ অ্যাডমিন প্যানেলে এটি content হিসেবে সেভ হচ্ছে */}
+                  <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed whitespace-pre-wrap">
+                    {tip.content}
+                  </p>
+                </div>
+                
               </div>
-              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1 rounded-md border border-slate-100 dark:border-slate-800">
-                {tip.category}
-              </span>
-            </div>
-            
-            <div className="flex-1">
-              <h3 className="font-bold text-slate-800 dark:text-slate-100 text-lg mb-2 leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                {tip.title}
-              </h3>
-              <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
-                {tip.desc}
-              </p>
-            </div>
-            
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Bottom Call to Action */}
       <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 rounded-2xl p-6 text-center transition-colors">
