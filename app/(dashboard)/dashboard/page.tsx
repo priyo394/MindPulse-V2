@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { collection, query, where, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { db } from "../../../lib/firebase";
@@ -22,10 +22,11 @@ export default function Dashboard() {
   
   const [wellnessScore, setWellnessScore] = useState<number | null>(null);
   const [todayCheckIn, setTodayCheckIn] = useState<any>(null);
+  const [weeklyCheckIns, setWeeklyCheckIns] = useState<any[]>([]);
   const [recentJournals, setRecentJournals] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   
-  // ডাইনামিক ওয়েলনেস টিপসের জন্য নতুন স্টেট
+  // ডাইনামিক ওয়েলনেস টিপসের জন্য স্টেট
   const [wellnessTips, setWellnessTips] = useState<any[]>([]);
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
 
@@ -34,7 +35,7 @@ export default function Dashboard() {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
 
-      // ১. Check-in ডেটা ফেচ
+      // ১. আজকের Check-in ডেটা ফেচ
       const checkInQuery = query(
         collection(db, "checkins"),
         where("userId", "==", user.uid),
@@ -45,7 +46,7 @@ export default function Dashboard() {
       const unsubscribeCheckIn = onSnapshot(checkInQuery, (snapshot) => {
         if (!snapshot.empty) {
           const latestCheckIn = { id: snapshot.docs[0].id, ...(snapshot.docs[0].data() as any) };
-          const checkInDate = latestCheckIn.timestamp?.toDate();
+          const checkInDate = latestCheckIn.timestamp?.toDate ? latestCheckIn.timestamp.toDate() : new Date(latestCheckIn.timestamp);
 
           if (checkInDate && checkInDate >= todayStart) {
             setTodayCheckIn(latestCheckIn);
@@ -55,12 +56,34 @@ export default function Dashboard() {
             setWellnessScore(null);
           }
         } else {
-            setTodayCheckIn(null);
-            setWellnessScore(null);
+          setTodayCheckIn(null);
+          setWellnessScore(null);
         }
       });
 
-      // ২. Recent Journals ডেটা ফেচ
+      // ২. গত ৭ দিনের Check-ins ফেচ (Weekly Overview & Mood Trend এর জন্য)
+      const weeklyQuery = query(
+        collection(db, "checkins"),
+        where("userId", "==", user.uid)
+      );
+
+      const unsubscribeWeekly = onSnapshot(weeklyQuery, (snapshot) => {
+        const now = new Date();
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(now.getDate() - 6);
+        sevenDaysAgo.setHours(0, 0, 0, 0);
+
+        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }));
+        const filtered = docs.filter(item => {
+          if (!item.timestamp) return false;
+          const d = item.timestamp.toDate ? item.timestamp.toDate() : new Date(item.timestamp);
+          return d >= sevenDaysAgo;
+        });
+
+        setWeeklyCheckIns(filtered);
+      });
+
+      // ৩. Recent Journals ডেটা ফেচ
       const journalsQuery = query(
         collection(db, "journals"),
         where("userId", "==", user.uid),
@@ -73,7 +96,7 @@ export default function Dashboard() {
         setRecentJournals(jData);
       });
 
-      // ৩. অ্যাডমিন প্যানেল থেকে Wellness Tips ফেচ করা
+      // ৪. Wellness Tips ফেচ করা
       const tipsQuery = query(collection(db, "wellnessTips")); 
       const unsubscribeTips = onSnapshot(tipsQuery, (snapshot) => {
         const tipsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -84,13 +107,14 @@ export default function Dashboard() {
 
       return () => {
         unsubscribeCheckIn();
+        unsubscribeWeekly();
         unsubscribeJournals();
         unsubscribeTips();
       };
     }
   }, [user]);
 
-  // অটো-স্লাইডার লজিক (প্রতি ৭ সেকেন্ডে স্লাইড চেঞ্জ হবে)
+  // অটো-স্লাইডার লজিক
   useEffect(() => {
     if (wellnessTips.length > 1) {
       const interval = setInterval(() => {
@@ -99,6 +123,83 @@ export default function Dashboard() {
       return () => clearInterval(interval);
     }
   }, [wellnessTips]);
+
+  // Weekly Overview হিসাব করার লজিক
+  const weeklyStats = useMemo(() => {
+    if (weeklyCheckIns.length === 0) {
+      return {
+        avgMood: "No data",
+        avgMoodIcon: "🙂",
+        avgStress: "No data",
+        avgSleep: "No data",
+        count: "0/7"
+      };
+    }
+
+    const moodScores: Record<string, number> = { Great: 4, Good: 3, Okay: 2, Low: 1 };
+    let totalMoodScore = 0;
+    let totalStress = 0;
+    let totalSleep = 0;
+
+    weeklyCheckIns.forEach(c => {
+      totalMoodScore += moodScores[c.mood] || 2;
+      totalStress += Number(c.stressLevel) || 0;
+      totalSleep += Number(c.sleepHours) || 0;
+    });
+
+    const avgMoodScore = Math.round(totalMoodScore / weeklyCheckIns.length);
+    let avgMoodText = "Okay";
+    let avgMoodIcon = "😐";
+
+    if (avgMoodScore >= 4) { avgMoodText = "Great"; avgMoodIcon = "😄"; }
+    else if (avgMoodScore === 3) { avgMoodText = "Good"; avgMoodIcon = "🙂"; }
+    else if (avgMoodScore === 2) { avgMoodText = "Okay"; avgMoodIcon = "😐"; }
+    else { avgMoodText = "Low"; avgMoodIcon = "😔"; }
+
+    const avgStressVal = (totalStress / weeklyCheckIns.length).toFixed(1);
+    const avgSleepVal = (totalSleep / weeklyCheckIns.length).toFixed(1);
+
+    const uniqueDays = new Set(
+      weeklyCheckIns.map(c => {
+        const d = c.timestamp?.toDate ? c.timestamp.toDate() : new Date(c.timestamp);
+        return d.toDateString();
+      })
+    );
+
+    return {
+      avgMood: avgMoodText,
+      avgMoodIcon,
+      avgStress: `${avgStressVal}/10`,
+      avgSleep: `${avgSleepVal}h`,
+      count: `${Math.min(uniqueDays.size, 7)}/7`
+    };
+  }, [weeklyCheckIns]);
+
+  // Mood Trend (গত ৭ দিনের চার্ট ডেটা)
+  const last7DaysData = useMemo(() => {
+    const days = [];
+    const moodHeights: Record<string, number> = { Great: 100, Good: 75, Okay: 50, Low: 25 };
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dayStr = d.toLocaleDateString('en-US', { weekday: 'short' });
+      const dateStr = d.toDateString();
+
+      const checkIn = weeklyCheckIns.find(c => {
+        const cd = c.timestamp?.toDate ? c.timestamp.toDate() : new Date(c.timestamp);
+        return cd.toDateString() === dateStr;
+      });
+
+      days.push({
+        day: dayStr,
+        mood: checkIn ? checkIn.mood : null,
+        height: checkIn ? (moodHeights[checkIn.mood] || 40) : 0,
+        icon: checkIn ? getMoodData(checkIn.mood).icon : ""
+      });
+    }
+    return days;
+  }, [weeklyCheckIns]);
 
   const calculateScore = (checkIn: any) => {
     let score = 50;
@@ -123,6 +224,7 @@ export default function Dashboard() {
   return (
     <div className="p-4 md:p-8 pt-4 transition-colors duration-200">
       
+      {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard 
           title="Today's Mood" 
@@ -158,28 +260,22 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* Row 2: Status & Tips */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between transition-colors">
-          <div>
-            <div className="flex items-center gap-2 mb-4 text-blue-600 dark:text-blue-400">
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
-              <h3 className="font-bold text-lg">Daily Check-In Status</h3>
-            </div>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">
-              {todayCheckIn ? "Check-in complete! 🎉" : "No check-in today"}
-            </h2>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-              {todayCheckIn ? "Great job! You have successfully logged your wellness data today." : "Start your daily check-in to track your wellness."}
-            </p>
+        {/* Daily Check-In Status Card (বাটন ছাড়া কেবল টেক্সট অংশ) */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
+          <div className="flex items-center gap-2 mb-4 text-blue-600 dark:text-blue-400">
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
+            <h3 className="font-bold text-lg">Daily Check-In Status</h3>
           </div>
-          <div>
-            <button 
-              onClick={() => setIsModalOpen(true)}
-              className="bg-blue-600 dark:bg-blue-500 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 dark:hover:bg-blue-600 transition"
-            >
-              {todayCheckIn ? "Update Check-In" : "Start Check-In"}
-            </button>
-          </div>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">
+            {todayCheckIn ? "Check-in complete! 🎉" : "No check-in today"}
+          </h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm">
+            {todayCheckIn 
+              ? "Great job! You have successfully logged your wellness data today." 
+              : "Start your daily check-in to track your wellness."}
+          </p>
         </div>
 
         {/* Dynamic Auto-Sliding Wellness Tips */}
@@ -230,23 +326,49 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Third Row */}
+      {/* Row 3: Mood Trend & Weekly Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
-          <div className="flex items-center justify-between mb-10">
+        
+        {/* Mood Trend Chart */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 transition-colors flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
               <h3 className="font-bold text-lg">Mood Trend</h3>
             </div>
             <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 px-2.5 py-1 rounded-md border border-slate-100 dark:border-slate-700">Last 7 Days</span>
           </div>
-          <div className="flex flex-col items-center justify-center py-6 text-slate-400 dark:text-slate-500">
-            <svg className="w-12 h-12 mb-3 text-slate-300 dark:text-slate-600" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 4h2v5l-1-.75L9 9V4zm9 16H6V4h2v7l2-1.5 2 1.5V4h5v16z"/></svg>
-            <p className="font-semibold text-slate-600 dark:text-slate-400 mb-1">No mood data yet</p>
-            <p className="text-sm">Start checking in daily to see your mood trend.</p>
-          </div>
+
+          {weeklyCheckIns.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-6 text-slate-400 dark:text-slate-500">
+              <svg className="w-12 h-12 mb-3 text-slate-300 dark:text-slate-600" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 4h2v5l-1-.75L9 9V4zm9 16H6V4h2v7l2-1.5 2 1.5V4h5v16z"/></svg>
+              <p className="font-semibold text-slate-600 dark:text-slate-400 mb-1">No mood data yet</p>
+              <p className="text-sm">Start checking in daily to see your mood trend.</p>
+            </div>
+          ) : (
+            <div className="flex items-end justify-between h-36 pt-4 px-2">
+              {last7DaysData.map((item, idx) => (
+                <div key={idx} className="flex flex-col items-center gap-2 flex-1">
+                  <div className="h-24 w-full flex items-end justify-center">
+                    {item.mood ? (
+                      <div 
+                        style={{ height: `${item.height}%` }}
+                        className="w-7 max-w-[28px] bg-blue-500/80 dark:bg-blue-600/80 hover:bg-blue-600 dark:hover:bg-blue-500 rounded-t-lg transition-all flex items-center justify-center text-xs relative shadow-sm"
+                      >
+                        <span className="text-sm absolute -top-6">{item.icon}</span>
+                      </div>
+                    ) : (
+                      <div className="w-7 max-w-[28px] h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full"></div>
+                    )}
+                  </div>
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{item.day}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
+        {/* Weekly Overview */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
@@ -259,24 +381,24 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="border border-slate-100 dark:border-slate-700 rounded-xl p-4 flex gap-3 items-start">
-              <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-lg">🙂</div>
+              <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-lg">{weeklyStats.avgMoodIcon}</div>
               <div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Avg Mood</p>
-                <p className="font-bold text-slate-800 dark:text-slate-100">No data</p>
+                <p className="font-bold text-slate-800 dark:text-slate-100">{weeklyStats.avgMood}</p>
               </div>
             </div>
             <div className="border border-slate-100 dark:border-slate-700 rounded-xl p-4 flex gap-3 items-start">
               <div className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-900/30 flex items-center justify-center text-lg">🌡️</div>
               <div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Avg Stress</p>
-                <p className="font-bold text-slate-800 dark:text-slate-100">No data</p>
+                <p className="font-bold text-slate-800 dark:text-slate-100">{weeklyStats.avgStress}</p>
               </div>
             </div>
             <div className="border border-slate-100 dark:border-slate-700 rounded-xl p-4 flex gap-3 items-start">
               <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-lg">🛌</div>
               <div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Avg Sleep</p>
-                <p className="font-bold text-slate-800 dark:text-slate-100">No data</p>
+                <p className="font-bold text-slate-800 dark:text-slate-100">{weeklyStats.avgSleep}</p>
               </div>
             </div>
             <div className="border border-slate-100 dark:border-slate-700 rounded-xl p-4 flex gap-3 items-start">
@@ -285,15 +407,15 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Check-ins</p>
-                <p className="font-bold text-slate-800 dark:text-slate-100">0/7</p>
+                <p className="font-bold text-slate-800 dark:text-slate-100">{weeklyStats.count}</p>
               </div>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Row 4: Recent Journals & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
-        {/* Recent Journal Entries */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col transition-colors">
           <div className="flex items-center gap-2 mb-6 text-slate-800 dark:text-slate-100">
             <svg className="w-5 h-5 text-slate-700 dark:text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
@@ -349,7 +471,7 @@ export default function Dashboard() {
             </Link>
 
             <Link href="/reports" className="flex flex-col items-center justify-center p-4 rounded-xl bg-purple-50 dark:bg-purple-900/10 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition">
-              <svg className="w-6 h-6 mb-2" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+              <svg className="w-6 h-6 mb-2" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
               <span className="font-semibold text-sm">View Reports</span>
             </Link>
 

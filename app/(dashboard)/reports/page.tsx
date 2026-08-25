@@ -144,12 +144,12 @@ export default function ReportsPage() {
             />
           </div>
 
-          {/* Charts Section (Tailwind CSS Based) */}
+          {/* Charts Section (Tailwind CSS Based) - FIXED */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             
             {/* Stress Trend Bar Chart */}
             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="font-bold text-slate-800 dark:text-slate-100 text-lg">Stress Level Trend</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">Last 7 Check-ins</p>
@@ -159,23 +159,28 @@ export default function ReportsPage() {
                 </div>
               </div>
               
-              <div className="h-48 flex items-end justify-between gap-2 mt-4 pt-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+              {/* Chart Container */}
+              <div className="h-48 flex items-stretch justify-between gap-2 pt-6 border-b border-slate-100 dark:border-slate-800 pb-2">
                 {last7Days.map((checkin, index) => {
-                  const stress = Number(checkin.stressLevel) || 0;
-                  const height = `${(stress / 10) * 100}%`;
+                  const stress = Number(checkin.stressLevel ?? checkin.stress) || 0;
+                  const heightPercent = Math.min(Math.max((stress / 10) * 100, 0), 100);
+
                   return (
-                    <div key={index} className="flex flex-col items-center flex-1 group">
-                      <div className="relative w-full flex justify-center h-full items-end">
+                    <div key={index} className="flex flex-col items-center flex-1 h-full group">
+                      {/* Bar Area */}
+                      <div className="relative w-full flex-1 flex items-end justify-center">
                         <div 
-                          className="w-full max-w-[40px] bg-red-100 dark:bg-red-950/60 group-hover:bg-red-400 dark:group-hover:bg-red-500 rounded-t-md transition-all duration-300 relative"
-                          style={{ height: height === "0%" ? "5%" : height }}
+                          className="w-full max-w-[32px] bg-red-400 dark:bg-red-600 group-hover:bg-red-500 dark:group-hover:bg-red-400 rounded-t-md transition-all duration-300 relative"
+                          style={{ height: `${heightPercent}%`, minHeight: stress > 0 ? "6px" : "2px" }}
                         >
-                          <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-slate-600 dark:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                             {stress}
                           </span>
                         </div>
                       </div>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold mt-2 truncate w-full text-center">
+                      
+                      {/* X-Axis Day Label */}
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold mt-2 truncate w-full text-center shrink-0">
                         {checkin.timestamp?.toDate ? new Date(checkin.timestamp.toDate()).toLocaleDateString('en-US', { weekday: 'short' }) : "Day"}
                       </span>
                     </div>
@@ -186,7 +191,7 @@ export default function ReportsPage() {
 
             {/* Sleep Trend Bar Chart */}
             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="font-bold text-slate-800 dark:text-slate-100 text-lg">Sleep Duration Trend</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">Last 7 Check-ins (Hours)</p>
@@ -196,23 +201,28 @@ export default function ReportsPage() {
                 </div>
               </div>
               
-              <div className="h-48 flex items-end justify-between gap-2 mt-4 pt-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+              {/* Chart Container */}
+              <div className="h-48 flex items-stretch justify-between gap-2 pt-6 border-b border-slate-100 dark:border-slate-800 pb-2">
                 {last7Days.map((checkin, index) => {
-                  const sleep = Number(checkin.sleepHours) || 0;
-                  const height = `${Math.min((sleep / 12) * 100, 100)}%`; 
+                  const sleep = Number(checkin.sleepHours ?? checkin.sleep) || 0;
+                  const heightPercent = Math.min(Math.max((sleep / 12) * 100, 0), 100);
+
                   return (
-                    <div key={index} className="flex flex-col items-center flex-1 group">
-                      <div className="relative w-full flex justify-center h-full items-end">
+                    <div key={index} className="flex flex-col items-center flex-1 h-full group">
+                      {/* Bar Area */}
+                      <div className="relative w-full flex-1 flex items-end justify-center">
                         <div 
-                          className="w-full max-w-[40px] bg-indigo-100 dark:bg-indigo-950/60 group-hover:bg-indigo-400 dark:group-hover:bg-indigo-500 rounded-t-md transition-all duration-300 relative"
-                          style={{ height: height === "0%" ? "5%" : height }}
+                          className="w-full max-w-[32px] bg-indigo-400 dark:bg-indigo-600 group-hover:bg-indigo-500 dark:group-hover:bg-indigo-400 rounded-t-md transition-all duration-300 relative"
+                          style={{ height: `${heightPercent}%`, minHeight: sleep > 0 ? "6px" : "2px" }}
                         >
-                           <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-slate-600 dark:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity z-10 whitespace-nowrap">
                             {sleep}h
                           </span>
                         </div>
                       </div>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold mt-2 truncate w-full text-center">
+                      
+                      {/* X-Axis Day Label */}
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold mt-2 truncate w-full text-center shrink-0">
                         {checkin.timestamp?.toDate ? new Date(checkin.timestamp.toDate()).toLocaleDateString('en-US', { weekday: 'short' }) : "Day"}
                       </span>
                     </div>
