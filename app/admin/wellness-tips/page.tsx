@@ -8,6 +8,9 @@ interface WellnessTip {
   id: string;
   title: string;
   content: string;
+  targetMood: "All" | "Great" | "Good" | "Okay" | "Low";
+  targetStress: "all" | "low" | "medium" | "high"; // low: 1-3, medium: 4-6, high: 7-10
+  targetSleep: "all" | "low" | "optimal" | "high"; // low: <6, optimal: 6-8, high: >8
   createdAt: string;
 }
 
@@ -21,6 +24,9 @@ export default function WellnessTipsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
+  const [targetMood, setTargetMood] = useState<"All" | "Great" | "Good" | "Okay" | "Low">("All");
+  const [targetStress, setTargetStress] = useState<"all" | "low" | "medium" | "high">("all");
+  const [targetSleep, setTargetSleep] = useState<"all" | "low" | "optimal" | "high">("all");
 
   const fetchTips = async () => {
     try {
@@ -33,6 +39,9 @@ export default function WellnessTipsPage() {
           id: doc.id,
           title: data.title || "No Title",
           content: data.content || "No Content",
+          targetMood: data.targetMood || "All",
+          targetStress: data.targetStress || "all",
+          targetSleep: data.targetSleep || "all",
           createdAt: data.createdAt || new Date().toISOString(),
         });
       });
@@ -59,16 +68,18 @@ export default function WellnessTipsPage() {
       const newTipData = {
         title: newTitle,
         content: newContent,
+        targetMood,
+        targetStress,
+        targetSleep,
         createdAt: new Date().toISOString(),
       };
       
       const docRef = await addDoc(collection(db, "wellnessTips"), newTipData);
       
-      // Activity Log এ সেভ করা হচ্ছে
       await addDoc(collection(db, "activityLogs"), {
         userName: "Admin User",
         action: "Created Wellness Tip",
-        details: `Added a new tip titled: "${newTitle}"`,
+        details: `Added tip: "${newTitle}" [Mood: ${targetMood}, Stress: ${targetStress}, Sleep: ${targetSleep}]`,
         type: "success",
         createdAt: new Date().toISOString(),
       });
@@ -76,8 +87,11 @@ export default function WellnessTipsPage() {
       setTips([{ id: docRef.id, ...newTipData }, ...tips]);
       setNewTitle("");
       setNewContent("");
+      setTargetMood("All");
+      setTargetStress("all");
+      setTargetSleep("all");
       setIsModalOpen(false);
-      alert("New wellness tip added successfully!");
+      alert("New targeted wellness tip added successfully!");
     } catch (error) {
       console.error("Error adding tip:", error);
       alert("Failed to add tip.");
@@ -87,13 +101,12 @@ export default function WellnessTipsPage() {
   };
 
   const handleDeleteTip = async (tipId: string) => {
-    if (!window.confirm("Are you sure you want to delete this tip? It will be removed from user dashboards.")) return;
+    if (!window.confirm("Are you sure you want to delete this tip?")) return;
 
     setActionLoadingId(tipId);
     try {
       await deleteDoc(doc(db, "wellnessTips", tipId));
       
-      // Activity Log এ সেভ করা হচ্ছে
       await addDoc(collection(db, "activityLogs"), {
         userName: "Admin User",
         action: "Deleted Wellness Tip",
@@ -114,12 +127,12 @@ export default function WellnessTipsPage() {
   return (
     <div className="flex-1 flex flex-col overflow-y-auto bg-[#f8fafc] dark:bg-slate-950 p-4 md:p-6 space-y-6 relative transition-colors">
       
-      {/* Page Header */}
+      {/* Header */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-colors">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Wellness Tips Management ⭐</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Add or remove daily wellness advice for users.
+            Target tips based on User Mood, Stress level & Sleep duration.
           </p>
         </div>
         
@@ -144,7 +157,7 @@ export default function WellnessTipsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {tips.map((tip) => (
             <div key={tip.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm hover:shadow-md transition flex flex-col">
-              <div className="flex justify-between items-start mb-3">
+              <div className="flex justify-between items-start mb-2">
                 <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 line-clamp-1">{tip.title}</h3>
                 <button 
                   onClick={() => handleDeleteTip(tip.id)}
@@ -155,9 +168,32 @@ export default function WellnessTipsPage() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                 </button>
               </div>
+
+              {/* Targeting Badges */}
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+                  Mood: {tip.targetMood}
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                  tip.targetStress === "high" 
+                    ? "bg-red-500/10 text-red-500 border-red-500/20" 
+                    : tip.targetStress === "medium" 
+                    ? "bg-amber-500/10 text-amber-500 border-amber-500/20" 
+                    : tip.targetStress === "low"
+                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                    : "bg-slate-500/10 text-slate-500 border-slate-500/20"
+                }`}>
+                  Stress: {tip.targetStress === "low" ? "Low (1-3)" : tip.targetStress === "medium" ? "Moderate (4-6)" : tip.targetStress === "high" ? "High (7-10)" : "All"}
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                  Sleep: {tip.targetSleep === "low" ? "< 6h" : tip.targetSleep === "optimal" ? "6-8h" : tip.targetSleep === "high" ? "> 8h" : "All"}
+                </span>
+              </div>
+
               <p className="text-sm text-slate-600 dark:text-slate-300 mb-4 flex-1 whitespace-pre-wrap line-clamp-4">
                 {tip.content}
               </p>
+              
               <div className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-auto pt-3 border-t border-slate-50 dark:border-slate-800/60">
                 Added on: {new Date(tip.createdAt).toLocaleDateString()}
               </div>
@@ -172,7 +208,7 @@ export default function WellnessTipsPage() {
           <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-xl relative overflow-hidden border border-slate-200 dark:border-slate-800 transition-colors">
             
             <div className="bg-emerald-50 dark:bg-emerald-950/40 px-6 py-4 border-b border-emerald-100 dark:border-emerald-900/40 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-emerald-800 dark:text-emerald-300">Create New Wellness Tip</h3>
+              <h3 className="text-lg font-bold text-emerald-800 dark:text-emerald-300">Create Targeted Wellness Tip</h3>
               <button 
                 onClick={() => setIsModalOpen(false)} 
                 className="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 bg-emerald-100 dark:bg-emerald-950/50 p-1.5 rounded-full transition"
@@ -187,19 +223,65 @@ export default function WellnessTipsPage() {
                 <input 
                   type="text" 
                   required
-                  placeholder="e.g., Stay Hydrated"
+                  placeholder="e.g., Sleep Hygiene Advice"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
-              
+
+              {/* Mood, Stress & Sleep Target Selectors */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Target Mood</label>
+                  <select 
+                    value={targetMood}
+                    onChange={(e) => setTargetMood(e.target.value as any)}
+                    className="w-full px-2.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="All">All Moods</option>
+                    <option value="Great">😄 Great</option>
+                    <option value="Good">🙂 Good</option>
+                    <option value="Okay">😐 Okay</option>
+                    <option value="Low">😔 Low</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Stress Level</label>
+                  <select 
+                    value={targetStress}
+                    onChange={(e) => setTargetStress(e.target.value as any)}
+                    className="w-full px-2.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="all">All Levels</option>
+                    <option value="low">Low (1-3)</option>
+                    <option value="medium">Mod (4-6)</option>
+                    <option value="high">High (7-10)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Sleep Hours</label>
+                  <select 
+                    value={targetSleep}
+                    onChange={(e) => setTargetSleep(e.target.value as any)}
+                    className="w-full px-2.5 py-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="all">All Hours</option>
+                    <option value="low">Less than 6h</option>
+                    <option value="optimal">6 - 8 hours</option>
+                    <option value="high">Over 8 hours</option>
+                  </select>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Content / Advice <span className="text-red-500">*</span></label>
                 <textarea 
                   required
                   rows={4}
-                  placeholder="Write the tip description here..."
+                  placeholder="Write targeted advice here..."
                   value={newContent}
                   onChange={(e) => setNewContent(e.target.value)}
                   className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none custom-scrollbar"
@@ -219,18 +301,11 @@ export default function WellnessTipsPage() {
                   disabled={isSubmitting}
                   className="px-5 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition disabled:opacity-70 flex items-center gap-2"
                 >
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Saving...
-                    </>
-                  ) : (
-                    "Publish Tip"
-                  )}
+                  {isSubmitting ? "Saving..." : "Publish Tip"}
                 </button>
               </div>
             </form>
-            
+
           </div>
         </div>
       )}

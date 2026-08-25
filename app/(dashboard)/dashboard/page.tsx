@@ -97,7 +97,7 @@ export default function Dashboard() {
       });
 
       // ৪. Wellness Tips ফেচ করা
-      const tipsQuery = query(collection(db, "wellnessTips")); 
+      const tipsQuery = query(collection(db, "wellnessTips"));
       const unsubscribeTips = onSnapshot(tipsQuery, (snapshot) => {
         const tipsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         if (tipsData.length > 0) {
@@ -226,35 +226,35 @@ export default function Dashboard() {
       
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard 
-          title="Today's Mood" 
+        <StatCard
+          title="Today's Mood"
           value={todayCheckIn ? todayCheckIn.mood : "No data yet"}
           subtitle={todayCheckIn ? "Updated today" : "+ Add your mood"}
-          icon={getMoodData(todayCheckIn?.mood).icon} 
+          icon={getMoodData(todayCheckIn?.mood).icon}
           iconBg={getMoodData(todayCheckIn?.mood).bg}
           onClick={() => !todayCheckIn && setIsModalOpen(true)}
         />
-        <StatCard 
-          title="Stress Level" 
+        <StatCard
+          title="Stress Level"
           value={todayCheckIn ? `${todayCheckIn.stressLevel}/10` : "No data yet"}
           subtitle={todayCheckIn ? "Updated today" : "+ Add your stress"}
-          icon="🌡️" 
+          icon="🌡️"
           iconBg="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
           onClick={() => !todayCheckIn && setIsModalOpen(true)}
         />
-        <StatCard 
-          title="Sleep Hours" 
+        <StatCard
+          title="Sleep Hours"
           value={todayCheckIn ? `${todayCheckIn.sleepHours}h` : "No data yet"}
           subtitle={todayCheckIn ? "Updated today" : "+ Add your sleep"}
-          icon="🛌" 
+          icon="🛌"
           iconBg="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
           onClick={() => !todayCheckIn && setIsModalOpen(true)}
         />
-        <StatCard 
-          title="Wellness Score" 
+        <StatCard
+          title="Wellness Score"
           value={wellnessScore !== null ? wellnessScore.toString() : "--"}
           subtitle={todayCheckIn ? "✅ Complete check-in" : "Complete check-in"}
-          icon="⭐" 
+          icon="⭐"
           iconBg="bg-amber-100 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400"
           onClick={() => !todayCheckIn && setIsModalOpen(true)}
         />
@@ -262,7 +262,8 @@ export default function Dashboard() {
 
       {/* Row 2: Status & Tips */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Daily Check-In Status Card (বাটন ছাড়া কেবল টেক্সট অংশ) */}
+        
+        {/* Daily Check-In Status Card */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
           <div className="flex items-center gap-2 mb-4 text-blue-600 dark:text-blue-400">
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
@@ -272,8 +273,8 @@ export default function Dashboard() {
             {todayCheckIn ? "Check-in complete! 🎉" : "No check-in today"}
           </h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm">
-            {todayCheckIn 
-              ? "Great job! You have successfully logged your wellness data today." 
+            {todayCheckIn
+              ? "Great job! You have successfully logged your wellness data today."
               : "Start your daily check-in to track your wellness."}
           </p>
         </div>
@@ -287,12 +288,12 @@ export default function Dashboard() {
                 <span className="w-1.5 h-1.5 bg-green-500 dark:bg-green-400 rounded-full animate-pulse"></span> Live
               </span>
             </div>
-            
+           
             <div className="bg-green-50/50 dark:bg-green-900/10 rounded-xl p-5 border border-green-100 dark:border-green-900/30 flex gap-4 min-h-[140px] items-center relative overflow-hidden group">
               <span className="text-green-600 dark:text-green-400 text-3xl shrink-0 transition-transform duration-300 group-hover:scale-110">
                 {wellnessTips.length > 0 && wellnessTips[currentTipIndex]?.icon ? wellnessTips[currentTipIndex].icon : "💡"}
               </span>
-              
+             
               <div className="flex-1">
                 {wellnessTips.length > 0 ? (
                   <div key={currentTipIndex} className="animate-pulse-once">
@@ -314,8 +315,8 @@ export default function Dashboard() {
             {wellnessTips.length > 1 && (
               <div className="flex justify-center gap-2 mt-5">
                 {wellnessTips.map((_, idx) => (
-                  <button 
-                    key={idx} 
+                  <button
+                    key={idx}
                     onClick={() => setCurrentTipIndex(idx)}
                     className={`h-1.5 rounded-full transition-all duration-300 ${currentTipIndex === idx ? "w-6 bg-green-500 dark:bg-green-400" : "w-2 bg-green-200 dark:bg-green-900/50 hover:bg-green-300 dark:hover:bg-green-800/80"}`}
                   ></button>
@@ -351,7 +352,7 @@ export default function Dashboard() {
                 <div key={idx} className="flex flex-col items-center gap-2 flex-1">
                   <div className="h-24 w-full flex items-end justify-center">
                     {item.mood ? (
-                      <div 
+                      <div
                         style={{ height: `${item.height}%` }}
                         className="w-7 max-w-[28px] bg-blue-500/80 dark:bg-blue-600/80 hover:bg-blue-600 dark:hover:bg-blue-500 rounded-t-lg transition-all flex items-center justify-center text-xs relative shadow-sm"
                       >
@@ -421,7 +422,7 @@ export default function Dashboard() {
             <svg className="w-5 h-5 text-slate-700 dark:text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
             <h3 className="font-bold text-lg">Recent Journal Entries</h3>
           </div>
-          
+         
           <div className="flex-1 flex flex-col items-center justify-center py-6 text-center">
             {recentJournals.length === 0 ? (
               <>
@@ -438,8 +439,8 @@ export default function Dashboard() {
                 ))}
               </div>
             )}
-            
-            <Link 
+           
+            <Link
               href="/journal"
               className="inline-flex items-center gap-2 border-2 border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-6 py-2 rounded-lg font-semibold text-sm transition"
             >
@@ -455,16 +456,16 @@ export default function Dashboard() {
             <svg className="w-5 h-5 text-slate-700 dark:text-slate-300" fill="currentColor" viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
             <h3 className="font-bold text-lg">Quick Actions</h3>
           </div>
-          
+         
           <div className="grid grid-cols-2 gap-3">
-            <button 
+            <button
               onClick={() => setIsModalOpen(true)}
               className="flex flex-col items-center justify-center p-4 rounded-xl bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition"
             >
               <svg className="w-6 h-6 mb-2" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
               <span className="font-semibold text-sm">Daily Check-In</span>
             </button>
-            
+           
             <Link href="/chat" className="flex flex-col items-center justify-center p-4 rounded-xl bg-teal-50 dark:bg-teal-900/10 text-teal-600 dark:text-teal-400 border border-teal-100 dark:border-teal-900/30 hover:bg-teal-100 dark:hover:bg-teal-900/30 transition">
               <svg className="w-6 h-6 mb-2" fill="currentColor" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
               <span className="font-semibold text-sm">AI Assistant</span>
@@ -516,7 +517,7 @@ function StatCard({ title, value, subtitle, icon, iconBg, onClick }: { title: st
       </div>
       <div>
         <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">{value}</h3>
-        <button 
+        <button
           onClick={onClick}
           className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline text-left"
         >
