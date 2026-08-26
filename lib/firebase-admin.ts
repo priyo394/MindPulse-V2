@@ -1,4 +1,4 @@
-import admin from "firebase-admin";
+const admin = require("firebase-admin");
 
 function getFirebaseAdmin() {
   if (!admin.apps.length) {
