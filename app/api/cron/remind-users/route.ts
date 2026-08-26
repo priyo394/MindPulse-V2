@@ -2,18 +2,24 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '../../../../lib/firebase-admin';
 import { Resend } from 'resend';
 
-// Vercel-কে বলে দেওয়া হচ্ছে বিল্ড টাইমে এই ফাইল রান না করতে
 export const dynamic = 'force-dynamic';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function GET(request: Request) {
   try {
+    // ১. অথেন্টিকেশন চেক
     const authHeader = request.headers.get('authorization');
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return new Response('Unauthorized', { status: 401 });
     }
 
+    // ২. Resend ইনিশিয়ালাইজেশন (ফাংশনের ভেতরে রাখায় বিল্ড এরর হবে না)
+    const resendApiKey = process.env.RESEND_API_KEY;
+    if (!resendApiKey) {
+      throw new Error("Missing RESEND_API_KEY");
+    }
+    const resend = new Resend(resendApiKey);
+
+    // ৩. ডাটাবেস কোয়েরি ও ইমেইল পাঠানো
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
