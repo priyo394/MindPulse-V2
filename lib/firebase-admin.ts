@@ -3,9 +3,22 @@ import { getFirestore } from "firebase-admin/firestore";
 
 function getAdminDb() {
   if (!getApps().length) {
-    let rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY || "";
-    rawPrivateKey = rawPrivateKey.replace(/^"|"$/g, '');
-    const formattedPrivateKey = rawPrivateKey.split('\\n').join('\n');
+    let privateKey = process.env.FIREBASE_PRIVATE_KEY || "";
+
+    // শুরু ও শেষের ডাবল কোটেশন থাকলে রিমোভ করা
+    privateKey = privateKey.replace(/^"|"$/g, '').trim();
+
+    // যদি কি-টি Base64 এনকোডেড থাকে, তবে ডিকোড করা
+    if (!privateKey.includes("-----BEGIN PRIVATE KEY-----")) {
+      try {
+        privateKey = Buffer.from(privateKey, 'base64').toString('utf8');
+      } catch (e) {
+        // Ignore
+      }
+    }
+
+    // ব্যাকস্ল্যাশ n কে আসল নিউলাইনে কনভার্ট করা
+    const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
 
     initializeApp({
       credential: cert({
