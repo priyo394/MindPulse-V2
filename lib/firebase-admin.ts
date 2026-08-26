@@ -3,22 +3,21 @@ import { getFirestore } from "firebase-admin/firestore";
 
 function getAdminDb() {
   if (!getApps().length) {
-    const privateKey = (process.env.FIREBASE_PRIVATE_KEY || "")
-      .replace(/\\n/g, '\n')
-      .replace(/"/g, '');
+    let rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY || "";
+    rawPrivateKey = rawPrivateKey.replace(/^"|"$/g, '');
+    const formattedPrivateKey = rawPrivateKey.split('\\n').join('\n');
 
     initializeApp({
       credential: cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: privateKey,
+        privateKey: formattedPrivateKey,
       }),
     });
   }
   return getFirestore();
 }
 
-// Lazy initialization (বিল্ড টাইমে এরর আটকানোর জন্য)
 export const adminDb = new Proxy({} as FirebaseFirestore.Firestore, {
   get(target, prop) {
     const db = getAdminDb();

@@ -6,26 +6,30 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
-    // ১. অথেন্টিকেশন চেক
-    const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    // -------------------------------------------------------------
+    // সিকিউরিটি চেক (লোকাল টেস্টের জন্য কমেন্ট করে রাখা হলো)
+    // Vercel-এ পুশ করার আগে অবশ্যই সামনের // কেটে দেবেন!
+    // -------------------------------------------------------------
+     const authHeader = request.headers.get('authorization');
+     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return new Response('Unauthorized', { status: 401 });
-    }
+     }
 
-    // ২. Resend ইনিশিয়ালাইজেশন (ফাংশনের ভেতরে রাখায় বিল্ড এরর হবে না)
+    // Resend API ইনিশিয়ালাইজ করা
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) {
       throw new Error("Missing RESEND_API_KEY");
     }
     const resend = new Resend(resendApiKey);
 
-    // ৩. ডাটাবেস কোয়েরি ও ইমেইল পাঠানো
+    // আজকের তারিখের শুরু সেট করা
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
     const usersSnap = await adminDb.collection("users").get();
     let emailsSentCount = 0;
 
+    // ইউজারদের ডেটাবেস চেক করা এবং ইমেইল পাঠানো
     for (const userDoc of usersSnap.docs) {
       const userData = userDoc.data();
       const userId = userDoc.id;
@@ -56,7 +60,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ success: true, count: emailsSentCount });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ success: false }, { status: 500 });
+    console.error("Cron Job Error:", error);
+    return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
   }
 }
