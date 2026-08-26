@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '../../../../lib/firebase-admin';
 import { Resend } from 'resend';
 
+// Vercel-কে বলে দেওয়া হচ্ছে বিল্ড টাইমে এই ফাইল রান না করতে
+export const dynamic = 'force-dynamic';
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function GET(request: Request) {
