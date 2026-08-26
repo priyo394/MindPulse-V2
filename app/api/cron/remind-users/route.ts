@@ -1,35 +1,31 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '../../../../lib/firebase-admin';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
-    // -------------------------------------------------------------
-    // সিকিউরিটি চেক (লোকাল টেস্টের জন্য কমেন্ট করে রাখা হলো)
-    // Vercel-এ পুশ করার আগে অবশ্যই সামনের // কেটে দেবেন!
-    // -------------------------------------------------------------
-     const authHeader = request.headers.get('authorization');
-     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return new Response('Unauthorized', { status: 401 });
-     }
-
-    // Resend API ইনিশিয়ালাইজ করা
-    const resendApiKey = process.env.RESEND_API_KEY;
-    if (!resendApiKey) {
-      throw new Error("Missing RESEND_API_KEY");
     }
-    const resend = new Resend(resendApiKey);
 
-    // আজকের তারিখের শুরু সেট করা
+    // Nodemailer ট্রান্সপোর্টার সেটআপ
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
     const usersSnap = await adminDb.collection("users").get();
     let emailsSentCount = 0;
 
-    // ইউজারদের ডেটাবেস চেক করা এবং ইমেইল পাঠানো
     for (const userDoc of usersSnap.docs) {
       const userData = userDoc.data();
       const userId = userDoc.id;
@@ -41,9 +37,10 @@ export async function GET(request: Request) {
         .where("timestamp", ">=", todayStart)
         .get();
 
+      // যদি আজকের চেক-ইন না করে থাকে, তবে ইমেল পাঠানো হবে
       if (checkInSnap.empty) {
-        await resend.emails.send({
-          from: "MindPulse <onboarding@resend.dev>",
+        await transporter.sendMail({
+          from: `"MindPulse" <${process.env.EMAIL_USER}>`,
           to: userData.email,
           subject: "We miss you today! Take a moment for your wellness 🌿",
           html: `
