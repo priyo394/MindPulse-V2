@@ -6,11 +6,15 @@ if (!getApps().length) {
     throw new Error("Missing Firebase Admin Environment Variables");
   }
 
+  // Vercel-এর জন্য প্রাইভেট কি ঠিক করা (ডাবল কোটেশন বাদ দেওয়া এবং নিউলাইন ফিক্স করা)
+  let formatPrivateKey = process.env.FIREBASE_PRIVATE_KEY;
+  formatPrivateKey = formatPrivateKey.replace(/"/g, '').replace(/\\n/g, '\n');
+
   initializeApp({
     credential: cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      privateKey: formatPrivateKey,
     }),
   });
 }
