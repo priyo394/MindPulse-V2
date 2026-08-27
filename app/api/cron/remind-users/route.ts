@@ -11,7 +11,7 @@ export async function GET(request: Request) {
       return new Response('Unauthorized', { status: 401 });
     }
 
-    // Nodemailer ট্রান্সপোর্টার সেটআপ
+    // Nodemailer ট্রান্সপোর্터 সেটআপ
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -26,11 +26,17 @@ export async function GET(request: Request) {
     const usersSnap = await adminDb.collection("users").get();
     let emailsSentCount = 0;
 
+    // আপনার নির্দিষ্ট অ্যাডমিন ইমেইলটি এখানে বসিয়ে দিন
+    const adminEmail = "imammehedi2586@gmail.com"; 
+
     for (const userDoc of usersSnap.docs) {
       const userData = userDoc.data();
       const userId = userDoc.id;
 
       if (!userData.email) continue;
+
+      // ১. যদি ইউজারের ইমেইলটি অ্যাডমিনের ইমেইল হয়, তবে তাকে স্কিপ করবে
+      if (userData.email === adminEmail) continue;
 
       const checkInSnap = await adminDb.collection("checkins")
         .where("userId", "==", userId)
@@ -39,19 +45,25 @@ export async function GET(request: Request) {
 
       // যদি আজকের চেক-ইন না করে থাকে, তবে ইমেল পাঠানো হবে
       if (checkInSnap.empty) {
-        await transporter.sendMail({
-          from: `"MindPulse" <${process.env.EMAIL_USER}>`,
-          to: userData.email,
-          subject: "We miss you today! Take a moment for your wellness 🌿",
-          html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-              <h2>Hello ${userData.name || 'there'},</h2>
-              <p>We noticed you haven't logged your wellness check-in today yet.</p>
-              <a href="https://your-app.vercel.app/dashboard" style="background: #059669; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">Complete Check-in</a>
-            </div>
-          `,
-        });
-        emailsSentCount++;
+        try {
+          await transporter.sendMail({
+            from: `"MindPulse" <${process.env.EMAIL_USER}>`,
+            to: userData.email,
+            subject: "We miss you today! Take a moment for your wellness 🌿",
+            html: `
+              <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                <h2>Hello ${userData.name || 'there'},</h2>
+                <p>We noticed you haven't logged your wellness check-in today yet.</p>
+                <a href="https://your-app.vercel.app/dashboard" style="background: #059669; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">Complete Check-in</a>
+              </div>
+            `,
+          });
+          emailsSentCount++;
+        } catch (error) {
+          // ২. ফরম্যাট ঠিক থাকা সত্ত্বেও ইমেলটি ইনভ্যালিড বা ডেড হলে 
+          // এখানে এররটি ক্যাচ করবে, ফলে কোনো বাউন্স মেইল অ্যাডমিনের কাছে আসবে না।
+          console.error(`Failed to send email to ${userData.email}:`, error);
+        }
       }
     }
 
