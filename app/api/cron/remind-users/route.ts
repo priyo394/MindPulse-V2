@@ -11,6 +11,7 @@ export async function GET(request: Request) {
       return new Response('Unauthorized', { status: 401 });
     }
 
+    // Nodemailer ট্রান্সপোর্터 সেটআপ
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -25,6 +26,7 @@ export async function GET(request: Request) {
     const usersSnap = await adminDb.collection("users").get();
     let emailsSentCount = 0;
 
+    // আপনার নির্দিষ্ট অ্যাডমিন ইমেইলটি এখানে বসিয়ে দিন
     const adminEmail = "imammehedi2586@gmail.com"; 
 
     for (const userDoc of usersSnap.docs) {
@@ -33,17 +35,15 @@ export async function GET(request: Request) {
 
       if (!userData.email) continue;
 
-      // ১. অ্যাডমিন মেইল হলে স্কিপ করবে
+      // ১. যদি ইউজারের ইমেইলটি অ্যাডমিনের ইমেইল হয়, তবে তাকে স্কিপ করবে
       if (userData.email === adminEmail) continue;
-
-      // ২. যদি মেইলটি আগে থেকেই ইনভ্যালিড বা ডেড হিসেবে চিহ্নিত থাকে, তবে রিকোয়েস্টই পাঠাবে না (বাউন্স মেইল আসবে না)
-      if (userData.isEmailValid === false) continue;
 
       const checkInSnap = await adminDb.collection("checkins")
         .where("userId", "==", userId)
         .where("timestamp", ">=", todayStart)
         .get();
 
+      // যদি আজকের চেক-ইন না করে থাকে, তবে ইমেল পাঠানো হবে
       if (checkInSnap.empty) {
         try {
           await transporter.sendMail({
@@ -60,12 +60,9 @@ export async function GET(request: Request) {
           });
           emailsSentCount++;
         } catch (error) {
-          // ৩. মেইল পাঠাতে গিয়ে জিমেইল থেকে ফেইল করলে ফায়ারবেসে isEmailValid: false সেট করে দেবে
-          console.error(`Failed to send email to ${userData.email}, marking as invalid.`);
-          
-          await adminDb.collection("users").doc(userId).update({
-            isEmailValid: false
-          });
+          // ২. ফরম্যাট ঠিক থাকা সত্ত্বেও ইমেলটি ইনভ্যালিড বা ডেড হলে 
+          // এখানে এররটি ক্যাচ করবে, ফলে কোনো বাউন্স মেইল অ্যাডমিনের কাছে আসবে না।
+          console.error(`Failed to send email to ${userData.email}:`, error);
         }
       }
     }
