@@ -3,6 +3,7 @@ import { adminDb } from '../../../../lib/firebase-admin';
 import nodemailer from 'nodemailer';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Vercel-কে সর্বোচ্চ 60 সেকেন্ড সময় দেওয়ার নির্দেশ (টাইমআউট ফিক্স)
 
 export async function GET(request: Request) {
   try {
