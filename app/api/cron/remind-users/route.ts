@@ -3,7 +3,7 @@ import { adminDb } from '../../../../lib/firebase-admin';
 import nodemailer from 'nodemailer';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // Vercel-এর টাইমআউট ফিক্স
+export const maxDuration = 60;
 
 export async function GET(request: Request) {
   try {
@@ -26,7 +26,11 @@ export async function GET(request: Request) {
 
     const usersSnap = await adminDb.collection("users").get();
     let emailsSentCount = 0;
+    
     const adminEmail = "imammehedi2586@gmail.com"; 
+    const testEmail = "imammehedi250@gmail.com"; 
+
+    console.log(`--- CRON JOB STARTED for Date: ${todayString} ---`);
 
     for (const userDoc of usersSnap.docs) {
       const userData = userDoc.data();
@@ -35,15 +39,31 @@ export async function GET(request: Request) {
       if (!userData.email) continue;
       if (userData.email === adminEmail) continue;
 
-      // ডাবল মেইল ঠেকানোর লজিক
-      if (userData.lastReminderDate === todayString) continue;
+      // শুধুমাত্র আপনার টেস্ট ইমেইলের জন্য লগ প্রিন্ট করবে
+      const isTestUser = userData.email === testEmail;
+
+      if (isTestUser) {
+        console.log(`Found test user: ${testEmail}. Checking conditions...`);
+      }
+
+      if (!isTestUser && userData.lastReminderDate === todayString) {
+        continue; 
+      }
 
       const checkInSnap = await adminDb.collection("checkins")
         .where("userId", "==", userId)
         .where("timestamp", ">=", todayStart)
         .get();
 
+      if (isTestUser) {
+        console.log(`Check-ins found for ${testEmail} today: ${checkInSnap.size}`);
+      }
+
       if (checkInSnap.empty) {
+        if (isTestUser) {
+          console.log(`Attempting to send email to ${testEmail}...`);
+        }
+        
         try {
           await transporter.sendMail({
             from: `"MindPulse" <${process.env.EMAIL_USER}>`,
@@ -59,14 +79,23 @@ export async function GET(request: Request) {
           });
           
           emailsSentCount++;
+          
+          if (isTestUser) {
+            console.log(`SUCCESS! Email sent to ${testEmail}`);
+          }
 
-          // মেইল যাওয়ার পর ফায়ারবেসে ডেট সেভ করা
           await adminDb.collection("users").doc(userId).update({
             lastReminderDate: todayString
           });
 
         } catch (error) {
-          console.error(`Failed to send email to ${userData.email}:`, error);
+          if (isTestUser) {
+            console.error(`ERROR: Failed to send email to ${testEmail}. Error details:`, error);
+          }
+        }
+      } else {
+        if (isTestUser) {
+          console.log(`Skipped ${testEmail}: User has already checked in today!`);
         }
       }
     }
