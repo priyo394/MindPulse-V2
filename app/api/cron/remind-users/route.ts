@@ -3,7 +3,7 @@ import { adminDb } from '../../../../lib/firebase-admin';
 import nodemailer from 'nodemailer';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // Vercel-এর টাইমআউট ফিক্স (সব ইউজারের কাছে যাওয়ার সময় নিশ্চিত করতে)
+export const maxDuration = 60; // Vercel-এর টাইমআউট ফিক্স
 
 export async function GET(request: Request) {
   try {
@@ -12,7 +12,6 @@ export async function GET(request: Request) {
       return new Response('Unauthorized', { status: 401 });
     }
 
-    // Nodemailer ট্রান্সপোর্টার সেটআপ
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -23,70 +22,79 @@ export async function GET(request: Request) {
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    
-    // আজকের তারিখ ট্র্যাক করার জন্য স্ট্রিং (যেমন: "2026-08-30")
     const todayString = todayStart.toISOString().split('T')[0]; 
+    
+    console.log(`Cron Job Started. Server Date: ${todayString}`);
 
     const usersSnap = await adminDb.collection("users").get();
     let emailsSentCount = 0;
 
-    // আপনার নির্দিষ্ট অ্যাডমিন ইমেইলটি
     const adminEmail = "imammehedi2586@gmail.com"; 
 
     for (const userDoc of usersSnap.docs) {
       const userData = userDoc.data();
       const userId = userDoc.id;
+      const userEmail = userData.email;
 
-      if (!userData.email) continue;
+      if (!userEmail) continue;
 
-      // ১. যদি ইউজারের ইমেইলটি অ্যাডমিনের ইমেইল হয়, তবে স্কিপ করবে
-      if (userData.email === adminEmail) continue;
+      if (userEmail === adminEmail) {
+        console.log(`Skipped ${userEmail}: Admin email.`);
+        continue;
+      }
 
-      // ২. ইনভ্যালিড/ফেক মেইল হলে স্কিপ করবে
-      if (userData.isEmailValid === false) continue;
+      if (userData.isEmailValid === false) {
+        console.log(`Skipped ${userEmail}: isEmailValid is false in database.`);
+        continue;
+      }
 
-      // ৩. ডাবল মেইল প্রটেকশন: যদি আজকে অলরেডি রিমাইন্ডার পাঠানো হয়ে থাকে, তবে স্কিপ করবে
-      if (userData.lastReminderDate === todayString) continue;
+      if (userData.lastReminderDate === todayString) {
+        console.log(`Skipped ${userEmail}: Already sent email today (${todayString}).`);
+        continue;
+      }
 
       const checkInSnap = await adminDb.collection("checkins")
         .where("userId", "==", userId)
         .where("timestamp", ">=", todayStart)
         .get();
 
-      // যদি আজকের চেক-ইন না করে থাকে, তবে ইমেল পাঠানো হবে
-      if (checkInSnap.empty) {
-        try {
-          await transporter.sendMail({
-            from: `"MindPulse" <${process.env.EMAIL_USER}>`,
-            to: userData.email,
-            subject: "We miss you today! Take a moment for your wellness 🌿",
-            html: `
-              <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                <h2>Hello ${userData.name || 'there'},</h2>
-                <p>We noticed you haven't logged your wellness check-in today yet.</p>
-                <a href="https://your-app.vercel.app/dashboard" style="background: #059669; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">Complete Check-in</a>
-              </div>
-            `,
-          });
-          
-          emailsSentCount++;
+      if (!checkInSnap.empty) {
+        console.log(`Skipped ${userEmail}: User has already checked in today!`);
+        continue;
+      }
 
-          // ৪. সফলভাবে মেইল পাঠানোর পর ফায়ারবেসে আজকের তারিখ সেভ করে দেওয়া (যাতে ডাবল মেইল না যায়)
-          await adminDb.collection("users").doc(userId).update({
-            lastReminderDate: todayString
-          });
+      // যদি ওপরের কোনোটাতেই স্কিপ না হয়, তবে মেইল যাবে
+      console.log(`Attempting to send email to ${userEmail}...`);
+      try {
+        await transporter.sendMail({
+          from: `"MindPulse" <${process.env.EMAIL_USER}>`,
+          to: userEmail,
+          subject: "We miss you today! Take a moment for your wellness 🌿",
+          html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+              <h2>Hello ${userData.name || 'there'},</h2>
+              <p>We noticed you haven't logged your wellness check-in today yet.</p>
+              <a href="https://your-app.vercel.app/dashboard" style="background: #059669; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">Complete Check-in</a>
+            </div>
+          `,
+        });
+        
+        emailsSentCount++;
+        console.log(`Successfully sent email to ${userEmail}`);
 
-        } catch (error) {
-          console.error(`Failed to send email to ${userData.email}, marking as invalid:`, error);
-          
-          // ফরম্যাট ঠিক থাকা সত্ত্বেও ইমেলটি ডেড বা ফেইল করলে ইনভ্যালিড মার্ক করা
-          await adminDb.collection("users").doc(userId).update({
-            isEmailValid: false
-          });
-        }
+        await adminDb.collection("users").doc(userId).update({
+          lastReminderDate: todayString
+        });
+
+      } catch (error) {
+        console.error(`Failed to send email to ${userEmail}:`, error);
+        await adminDb.collection("users").doc(userId).update({
+          isEmailValid: false
+        });
       }
     }
 
+    console.log(`Cron Job Finished. Total emails sent: ${emailsSentCount}`);
     return NextResponse.json({ success: true, count: emailsSentCount });
   } catch (error) {
     console.error("Cron Job Error:", error);
