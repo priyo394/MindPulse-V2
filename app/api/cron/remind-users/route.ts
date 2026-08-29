@@ -11,9 +11,13 @@ export async function GET(request: Request) {
       return new Response('Unauthorized', { status: 401 });
     }
 
-    // ইউজার ম্যানুয়ালি নাকি Vercel ক্রন থেকে রিকোয়েস্ট এসেছে তা চেক করা
+    // ইউআরএল থেকে চেক করা হচ্ছে ম্যানুয়ালের সময় `?force=true` দেওয়া হয়েছে কি না
+    const { searchParams } = new URL(request.url);
+    const forceSend = searchParams.get('force') === 'true';
+
+    // ইউজার ম্যানুয়ালি নাকি Vercel ক্রন থেকে এসেছে তা চেক করা
     const userAgent = request.headers.get('user-agent') || '';
-    const isCronJob = userAgent.includes('vercel-cron'); // Vercel অটোমেটিক ক্রন হলে এটি থাকবে
+    const isCronJob = userAgent.includes('vercel-cron');
 
     // Nodemailer ট্রান্সপোর্터 সেটআপ
     const transporter = nodemailer.createTransport({
@@ -39,10 +43,10 @@ export async function GET(request: Request) {
       if (!userData.email) continue;
       if (userData.email === adminEmail) continue;
 
-      // 🔥 মূল ম্যাজিক: 
-      // ১. যদি এটি অটোমেটিক ক্রন জব হয়, তবে দেখবে আজকে অলরেডি মেইল গেছে কি না। গেলে স্কিপ করবে।
-      // ২. আর যদি আপনি ম্যানুয়ালি রান করেন, তবে এই ডেটের বাধা মানবে না! যতবার খুশি মেইল পাঠাবে।
-      if (isCronJob && userData.lastReminderDate === todayString) {
+      // 🔥 মূল লজিক:
+      // - যদি অটোমেটিক ক্রন জব হয় এবং আজ অলরেডি মেইল গিয়ে থাকে, তবেই শুধু স্কিপ করবে।
+      // - আর যদি আপনি ম্যানুয়ালি রান করার সময় লিঙ্কে `?force=true` দেন, তবে ডেটের বাধা মানবে না!
+      if (isCronJob && !forceSend && userData.lastReminderDate === todayString) {
         continue;
       }
 
@@ -69,7 +73,7 @@ export async function GET(request: Request) {
           
           emailsSentCount++;
 
-          // সফলভাবে মেইল পাঠানোর পর আজকের তারিখ সেভ করা (অটোমেটিক জবের ডাবল মেইল আটকানোর জন্য)
+          // সফলভাবে মেইল পাঠানোর পর আজকের তারিখ সেভ করা
           await adminDb.collection("users").doc(userId).update({
             lastReminderDate: todayString
           });
