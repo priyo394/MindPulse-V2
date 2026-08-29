@@ -11,6 +11,10 @@ export async function GET(request: Request) {
       return new Response('Unauthorized', { status: 401 });
     }
 
+    // ইউজার ম্যানুয়ালি নাকি Vercel ক্রন থেকে রিকোয়েস্ট এসেছে তা চেক করা
+    const userAgent = request.headers.get('user-agent') || '';
+    const isCronJob = userAgent.includes('vercel-cron'); // Vercel অটোমেটিক ক্রন হলে এটি থাকবে
+
     // Nodemailer ট্রান্সপোর্터 সেটআপ
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -22,14 +26,10 @@ export async function GET(request: Request) {
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-
-    // আজকের তারিখের স্ট্রিং (যেমন: "2026-08-30") - ডাবল মেইল আটকানোর জন্য
     const todayString = todayStart.toISOString().split('T')[0];
 
     const usersSnap = await adminDb.collection("users").get();
     let emailsSentCount = 0;
-
-    // আপনার নির্দিষ্ট অ্যাডমিন ইমেইলটি এখানে বসিয়ে দিন
     const adminEmail = "imammehedi2586@gmail.com"; 
 
     for (const userDoc of usersSnap.docs) {
@@ -37,12 +37,14 @@ export async function GET(request: Request) {
       const userId = userDoc.id;
 
       if (!userData.email) continue;
-
-      // ১. যদি ইউজারের ইমেইলটি অ্যাডমিনের ইমেইল হয়, তবে তাকে স্কিপ করবে
       if (userData.email === adminEmail) continue;
 
-      // ২. ডাবল মেইল ফিক্স: আজকে অলરેডি মেইল পাঠানো হয়ে থাকলে এই ইউজারকে আর মেইল পাঠানো হবে না
-      if (userData.lastReminderDate === todayString) continue;
+      // 🔥 মূল ম্যাজিক: 
+      // ১. যদি এটি অটোমেটিক ক্রন জব হয়, তবে দেখবে আজকে অলরেডি মেইল গেছে কি না। গেলে স্কিপ করবে।
+      // ২. আর যদি আপনি ম্যানুয়ালি রান করেন, তবে এই ডেটের বাধা মানবে না! যতবার খুশি মেইল পাঠাবে।
+      if (isCronJob && userData.lastReminderDate === todayString) {
+        continue;
+      }
 
       const checkInSnap = await adminDb.collection("checkins")
         .where("userId", "==", userId)
@@ -67,19 +69,18 @@ export async function GET(request: Request) {
           
           emailsSentCount++;
 
-          // ৩. সফলভাবে মেইল পাঠানোর সাথে সাথে ফায়ারবেসে আজকের তারিখ সেভ করে দেওয়া
+          // সফলভাবে মেইল পাঠানোর পর আজকের তারিখ সেভ করা (অটোমেটিক জবের ডাবল মেইল আটকানোর জন্য)
           await adminDb.collection("users").doc(userId).update({
             lastReminderDate: todayString
           });
 
         } catch (error) {
-          // ফরম্যাট ঠিক থাকা সত্ত্বেও ইমেলটি ইনভ্যালিড বা ডেড হলে এখানে এরর ক্যাচ করবে
           console.error(`Failed to send email to ${userData.email}:`, error);
         }
       }
     }
 
-    return NextResponse.json({ success: true, count: emailsSentCount });
+    return NextResponse.json({ success: true, mode: isCronJob ? "Automatic Cron" : "Manual Test", count: emailsSentCount });
   } catch (error) {
     console.error("Cron Job Error:", error);
     return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
