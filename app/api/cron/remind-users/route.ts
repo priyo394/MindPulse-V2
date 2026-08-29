@@ -3,8 +3,6 @@ import { adminDb } from '../../../../lib/firebase-admin';
 import nodemailer from 'nodemailer';
 
 export const dynamic = 'force-dynamic';
-// Vercel-এর টাইমআউট ফিক্স (যাতে অর্ধেক ইউজারকে পাঠিয়ে সার্ভার বন্ধ না হয়ে যায়)
-export const maxDuration = 60; 
 
 export async function GET(request: Request) {
   try {
@@ -13,7 +11,6 @@ export async function GET(request: Request) {
       return new Response('Unauthorized', { status: 401 });
     }
 
-    // Nodemailer ট্রান্সপোর্টার সেটআপ
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -25,13 +22,11 @@ export async function GET(request: Request) {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    // আজকের তারিখটি বের করা (যেমন: "2026-08-30")
     const todayString = todayStart.toISOString().split('T')[0];
 
     const usersSnap = await adminDb.collection("users").get();
     let emailsSentCount = 0;
 
-    // আপনার নির্দিষ্ট অ্যাডমিন ইমেইলটি এখানে বসিয়ে দিন
     const adminEmail = "imammehedi2586@gmail.com"; 
 
     for (const userDoc of usersSnap.docs) {
@@ -39,11 +34,9 @@ export async function GET(request: Request) {
       const userId = userDoc.id;
 
       if (!userData.email) continue;
-
-      // ১. যদি ইউজারের ইমেইলটি অ্যাডমিনের ইমেইল হয়, তবে তাকে স্কিপ করবে
       if (userData.email === adminEmail) continue;
 
-      // ** ডাবল মেইল বন্ধ করার লজিক: আজকে একবার মেইল গেলে আর যাবে না **
+      // ডাবল মেইল বন্ধ করার লজিক
       if (userData.lastReminderDate === todayString) continue;
 
       const checkInSnap = await adminDb.collection("checkins")
@@ -51,7 +44,6 @@ export async function GET(request: Request) {
         .where("timestamp", ">=", todayStart)
         .get();
 
-      // যদি আজকের চেক-ইন না করে থাকে, তবে ইমেল পাঠানো হবে
       if (checkInSnap.empty) {
         try {
           await transporter.sendMail({
@@ -69,14 +61,12 @@ export async function GET(request: Request) {
           
           emailsSentCount++;
 
-          // ** মেইল যাওয়ার সাথে সাথে ফায়ারবেসে আজকের তারিখ সেভ করে রাখা **
+          // মেইল যাওয়ার পর আজকের তারিখ সেভ করা
           await adminDb.collection("users").doc(userId).update({
             lastReminderDate: todayString
           });
 
         } catch (error) {
-          // ২. ফরম্যাট ঠিক থাকা সত্ত্বেও ইমেলটি ইনভ্যালিড বা ডেড হলে 
-          // এখানে এররটি ক্যাচ করবে, ফলে কোনো বাউন্স মেইল অ্যাডমিনের কাছে আসবে না।
           console.error(`Failed to send email to ${userData.email}:`, error);
         }
       }
