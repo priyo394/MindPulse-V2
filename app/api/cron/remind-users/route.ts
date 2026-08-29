@@ -3,6 +3,7 @@ import { adminDb } from '../../../../lib/firebase-admin';
 import nodemailer from 'nodemailer';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function GET(request: Request) {
   try {
@@ -11,7 +12,6 @@ export async function GET(request: Request) {
       return new Response('Unauthorized', { status: 401 });
     }
 
-    // Nodemailer ট্রান্সপোর্টার সেটআপ
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -22,34 +22,33 @@ export async function GET(request: Request) {
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-
-    // আজকের তারিখটি বের করা (যেমন: "2026-08-30")
     const todayString = todayStart.toISOString().split('T')[0];
 
     const usersSnap = await adminDb.collection("users").get();
     let emailsSentCount = 0;
-
-    // আপনার নির্দিষ্ট অ্যাডমিন ইমেইলটি এখানে বসিয়ে দিন
+    
     const adminEmail = "imammehedi2586@gmail.com"; 
+    const testEmail = "imammehedi250@gmail.com"; // আপনার ম্যানুয়াল টেস্টের ইমেইল
 
     for (const userDoc of usersSnap.docs) {
       const userData = userDoc.data();
       const userId = userDoc.id;
 
       if (!userData.email) continue;
-
-      // ১. যদি ইউজারের ইমেইলটি অ্যাডমিনের ইমেইল হয়, তবে তাকে স্কিপ করবে
+      
+      // অ্যাডমিন ইমেইল স্কিপ করবে
       if (userData.email === adminEmail) continue;
 
-      // ** ডাবল মেইল বন্ধ করার লজিক: আজকে একবার মেইল গেলে আর যাবে না **
-      if (userData.lastReminderDate === todayString) continue;
+      // 🔥 ম্যাজিক লজিক: আপনার টেস্ট ইমেইল বাদে বাকি সবার জন্য ডাবল মেইল ব্লক করা হলো
+      if (userData.email !== testEmail && userData.lastReminderDate === todayString) {
+        continue;
+      }
 
       const checkInSnap = await adminDb.collection("checkins")
         .where("userId", "==", userId)
         .where("timestamp", ">=", todayStart)
         .get();
 
-      // যদি আজকের চেক-ইন না করে থাকে, তবে ইমেল পাঠানো হবে
       if (checkInSnap.empty) {
         try {
           await transporter.sendMail({
@@ -67,13 +66,11 @@ export async function GET(request: Request) {
           
           emailsSentCount++;
 
-          // ** মেইল যাওয়ার সাথে সাথে ফায়ারবেসে আজকের তারিখ সেভ করে রাখা **
           await adminDb.collection("users").doc(userId).update({
             lastReminderDate: todayString
           });
 
         } catch (error) {
-          // ২. ফরম্যাট ঠিক থাকা সত্ত্বেও ইমেলটি ইনভ্যালিড বা ডেড হলে 
           console.error(`Failed to send email to ${userData.email}:`, error);
         }
       }
