@@ -3,7 +3,7 @@ import { adminDb } from '../../../../lib/firebase-admin';
 import nodemailer from 'nodemailer';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 60; // Vercel-এর টাইমআউট ফিক্স
 
 export async function GET(request: Request) {
   try {
@@ -26,23 +26,17 @@ export async function GET(request: Request) {
 
     const usersSnap = await adminDb.collection("users").get();
     let emailsSentCount = 0;
-    
     const adminEmail = "imammehedi2586@gmail.com"; 
-    const testEmail = "imammehedi250@gmail.com"; // আপনার ম্যানুয়াল টেস্টের ইমেইল
 
     for (const userDoc of usersSnap.docs) {
       const userData = userDoc.data();
       const userId = userDoc.id;
 
       if (!userData.email) continue;
-      
-      // অ্যাডমিন ইমেইল স্কিপ করবে
       if (userData.email === adminEmail) continue;
 
-      // 🔥 ম্যাজিক লজিক: আপনার টেস্ট ইমেইল বাদে বাকি সবার জন্য ডাবল মেইল ব্লক করা হলো
-      if (userData.email !== testEmail && userData.lastReminderDate === todayString) {
-        continue;
-      }
+      // ডাবল মেইল ঠেকানোর লজিক
+      if (userData.lastReminderDate === todayString) continue;
 
       const checkInSnap = await adminDb.collection("checkins")
         .where("userId", "==", userId)
@@ -66,6 +60,7 @@ export async function GET(request: Request) {
           
           emailsSentCount++;
 
+          // মেইল যাওয়ার পর ফায়ারবেসে ডেট সেভ করা
           await adminDb.collection("users").doc(userId).update({
             lastReminderDate: todayString
           });
