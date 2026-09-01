@@ -108,6 +108,21 @@ export default function UserDetailPage() {
     );
   }
 
+  // 👇 ডেট ফরম্যাট করার ফিক্সড লজিক এখানে অ্যাড করা হয়েছে
+  let displayDate = "N/A";
+  if (user.createdAt) {
+    if (typeof user.createdAt.toDate === 'function') {
+      // যদি এটি ফায়ারবেস Timestamp হয়
+      displayDate = user.createdAt.toDate().toLocaleString();
+    } else {
+      // যদি এটি স্ট্রিং বা মিলি-সেকেন্ড হয়
+      const parsedDate = new Date(user.createdAt);
+      if (!isNaN(parsedDate.getTime())) {
+        displayDate = parsedDate.toLocaleString();
+      }
+    }
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-y-auto bg-[#f8fafc] dark:bg-slate-950 p-4 md:p-6 space-y-6 transition-colors">
       
@@ -161,8 +176,9 @@ export default function UserDetailPage() {
 
               <div className="flex justify-between items-center p-3.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-xl">
                 <span className="font-medium text-slate-500 dark:text-slate-400">Registration Date</span>
+                {/* 👇 এখানে displayDate ভেরিয়েবলটি বসানো হয়েছে */}
                 <span className="text-slate-800 dark:text-slate-200 font-medium">
-                  {user.createdAt ? new Date(user.createdAt).toLocaleString() : "N/A"}
+                  {displayDate}
                 </span>
               </div>
             </div>
