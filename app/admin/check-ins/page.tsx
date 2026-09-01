@@ -10,7 +10,7 @@ interface CheckInReport {
   mood: string;
   sleepHours: string | number;
   note: string;
-  createdAt: string;
+  createdAt: string | null; // 🟢 null হ্যান্ডেল করার জন্য টাইপ আপডেট
   userName?: string;
   userEmail?: string;
 }
@@ -44,20 +44,46 @@ export default function CheckInReportsPage() {
           const data = doc.data();
           
           if (data.userId && usersMap[data.userId]) {
+            // 🟢 বিভিন্ন নামে সেভ থাকা টাইমস্ট্যাম্প এবং টাইপ Safely পার্স করার লজিক
+            const rawDate = data.createdAt || data.timestamp || data.date || data.created_at;
+            let formattedCreatedAt: string | null = null;
+
+            if (rawDate) {
+              if (typeof rawDate.toDate === "function") {
+                // Firestore Timestamp Object
+                formattedCreatedAt = rawDate.toDate().toISOString();
+              } else if (rawDate?.seconds) {
+                // Firestore Raw Seconds Object
+                formattedCreatedAt = new Date(rawDate.seconds * 1000).toISOString();
+              } else {
+                // ISO String / Number Timestamp / Date Object
+                const parsedDate = new Date(rawDate);
+                if (!isNaN(parsedDate.getTime())) {
+                  formattedCreatedAt = parsedDate.toISOString();
+                }
+              }
+            }
+
             reportsList.push({
               id: doc.id,
               userId: data.userId,
               mood: data.mood || "Neutral",
               sleepHours: data.sleepHours || "N/A",
               note: data.note || "",
-              createdAt: data.createdAt || new Date().toISOString(),
+              createdAt: formattedCreatedAt, // ❌ new Date() উঠে গেছে, ফলে কারেন্ট টাইম অটো বসবে না
               userName: usersMap[data.userId].name,
               userEmail: usersMap[data.userId].email,
             });
           }
         });
 
-        reportsList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        // 🟢 তারিখ অনুযায়ী সর্টিং (যেগুলোর তারিখ নেই সেগুলো নিচে যাবে)
+        reportsList.sort((a, b) => {
+          if (!a.createdAt) return 1;
+          if (!b.createdAt) return -1;
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
         setReports(reportsList);
       } catch (error) {
         console.error("Error fetching check-ins:", error);
@@ -92,6 +118,7 @@ export default function CheckInReportsPage() {
   return (
     <div className="flex-1 flex flex-col overflow-y-auto bg-[#f8fafc] dark:bg-slate-950 p-4 md:p-6 space-y-6 relative transition-colors">
       
+      {/* Top Header */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-colors">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Check-in Reports 📋</h2>
@@ -122,6 +149,7 @@ export default function CheckInReportsPage() {
         </div>
       </div>
 
+      {/* Reports Table */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 transition-colors">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[800px]">
@@ -161,11 +189,18 @@ export default function CheckInReportsPage() {
                       </div>
                     </td>
 
+                    {/* 🟢 dynamic date and time render */}
                     <td className="py-4 text-slate-600 dark:text-slate-300 font-medium text-xs">
-                      {new Date(report.createdAt).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })}
-                      <span className="block text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-                        {new Date(report.createdAt).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                      {report.createdAt ? (
+                        <>
+                          {new Date(report.createdAt).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' })}
+                          <span className="block text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                            {new Date(report.createdAt).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit', hour12: true })}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">No date recorded</span>
+                      )}
                     </td>
 
                     <td className="py-4">
@@ -198,6 +233,7 @@ export default function CheckInReportsPage() {
         </div>
       </div>
 
+      {/* Modal View */}
       {selectedReport && (
         <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 w-full max-w-lg shadow-2xl relative border border-slate-200 dark:border-slate-800 transition-colors">
@@ -214,6 +250,17 @@ export default function CheckInReportsPage() {
               <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
                 <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">Submitted By</span>
                 <span className="font-bold text-slate-800 dark:text-slate-100">{selectedReport.userName}</span>
+              </div>
+
+              <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">Date & Time</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-200 text-sm">
+                  {selectedReport.createdAt ? (
+                    new Date(selectedReport.createdAt).toLocaleString("en-US", { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
+                  ) : (
+                    "No Date Recorded"
+                  )}
+                </span>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
