@@ -7,6 +7,31 @@ import { db } from "../../../lib/firebase";
 import CheckInModal from "../../components/CheckInModal";
 import Link from "next/link";
 
+interface CheckIn {
+  id: string;
+  mood?: string;
+  stressLevel?: number | string;
+  sleepHours?: number | string;
+  timestamp?: any;
+}
+
+interface Journal {
+  id: string;
+  title?: string;
+  content?: string;
+}
+
+interface WellnessTip {
+  id: string;
+  title?: string;
+  content?: string;
+  description?: string;
+  icon?: string;
+  targetMood?: string;
+  targetStress?: string;
+  targetSleep?: string;
+}
+
 const getMoodData = (mood?: string) => {
   switch (mood) {
     case "Great": return { icon: "😄", bg: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" };
@@ -21,13 +46,13 @@ export default function Dashboard() {
   const { user } = useAuth();
   
   const [wellnessScore, setWellnessScore] = useState<number | null>(null);
-  const [todayCheckIn, setTodayCheckIn] = useState<any>(null);
-  const [weeklyCheckIns, setWeeklyCheckIns] = useState<any[]>([]);
-  const [recentJournals, setRecentJournals] = useState<any[]>([]);
+  const [todayCheckIn, setTodayCheckIn] = useState<CheckIn | null>(null);
+  const [weeklyCheckIns, setWeeklyCheckIns] = useState<CheckIn[]>([]);
+  const [recentJournals, setRecentJournals] = useState<Journal[]>([]);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   
-  // ডাইনামিক ওয়েলনেস টিপসের জন্য স্টেট
-  const [wellnessTips, setWellnessTips] = useState<any[]>([]);
+  // ডাইনামিক ওয়েলনেস টিপসের স্টেট
+  const [wellnessTips, setWellnessTips] = useState<WellnessTip[]>([]);
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
 
   useEffect(() => {
@@ -126,16 +151,16 @@ export default function Dashboard() {
       return generalTips.length > 0 ? generalTips : wellnessTips;
     }
 
-    const mood = todayCheckIn.mood; // Great, Good, Okay, Low
-    const stress = Number(todayCheckIn.stressLevel || 5); // 1 to 10
+    const mood = todayCheckIn.mood; 
+    const stress = Number(todayCheckIn.stressLevel || 5); 
     const sleep = Number(todayCheckIn.sleepHours || 7);
 
-    // স্ট্রেস লেভেল কনভার্ট করা (অ্যাডমিন প্যানেলের ক্যাটাগরি অনুযায়ী)
+    // স্ট্রেস লেভেল কনভার্ট করা
     let stressCat = "medium";
     if (stress <= 3) stressCat = "low";
     else if (stress >= 7) stressCat = "high";
 
-    // স্লিপ আওয়ার কনভার্ট করা
+    // স্লিপ আওয়ার কনভার্ট করা
     let sleepCat = "optimal";
     if (sleep < 6) sleepCat = "low";
     else if (sleep > 8) sleepCat = "high";
@@ -149,7 +174,6 @@ export default function Dashboard() {
       return moodMatch && stressMatch && sleepMatch;
     });
 
-    // স্পেসিফিক কোনো টিপস না পেলে জেনারেল (All) টিপস দেখাবে
     if (filtered.length > 0) return filtered;
     
     const fallbackTips = wellnessTips.filter(t => 
@@ -159,9 +183,9 @@ export default function Dashboard() {
     return fallbackTips.length > 0 ? fallbackTips : wellnessTips;
   }, [wellnessTips, todayCheckIn]);
 
-  // অটো-স্লাইডার লজিক (শুধুমাত্র relevantTips এর উপর কাজ করবে)
+  // অটো-স্লাইডার লজিক
   useEffect(() => {
-    setCurrentTipIndex(0); // টিপস আপডেট হলে স্লাইডার ০ থেকে শুরু হবে
+    setCurrentTipIndex(0); 
     if (relevantTips.length > 1) {
       const interval = setInterval(() => {
         setCurrentTipIndex((prevIndex) => (prevIndex + 1) % relevantTips.length);
@@ -188,7 +212,7 @@ export default function Dashboard() {
     let totalSleep = 0;
 
     weeklyCheckIns.forEach(c => {
-      totalMoodScore += moodScores[c.mood] || 2;
+      totalMoodScore += moodScores[c.mood || ""] || 2;
       totalStress += Number(c.stressLevel) || 0;
       totalSleep += Number(c.sleepHours) || 0;
     });
@@ -240,24 +264,24 @@ export default function Dashboard() {
       days.push({
         day: dayStr,
         mood: checkIn ? checkIn.mood : null,
-        height: checkIn ? (moodHeights[checkIn.mood] || 40) : 0,
+        height: checkIn && checkIn.mood ? (moodHeights[checkIn.mood] || 40) : 0,
         icon: checkIn ? getMoodData(checkIn.mood).icon : ""
       });
     }
     return days;
   }, [weeklyCheckIns]);
 
-  const calculateScore = (checkIn: any) => {
+  const calculateScore = (checkIn: CheckIn) => {
     let score = 50;
     if (checkIn.mood === "Great") score += 25;
     else if (checkIn.mood === "Good") score += 20;
     else if (checkIn.mood === "Okay") score += 10;
     else if (checkIn.mood === "Low") score += 5;
 
-    const stressDeduction = (checkIn.stressLevel || 5) * 2;
+    const stressDeduction = (Number(checkIn.stressLevel) || 5) * 2;
     score -= stressDeduction;
 
-    const sleep = checkIn.sleepHours || 0;
+    const sleep = Number(checkIn.sleepHours) || 0;
     if (sleep >= 7 && sleep <= 9) score += 25;
     else if (sleep >= 5) score += 15;
     else score += 5;
@@ -267,6 +291,8 @@ export default function Dashboard() {
 
   if (!user) return null;
 
+  const currentTip = relevantTips[currentTipIndex];
+
   return (
     <div className="p-4 md:p-8 pt-4 transition-colors duration-200">
       
@@ -274,7 +300,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard
           title="Today's Mood"
-          value={todayCheckIn ? todayCheckIn.mood : "No data yet"}
+          value={todayCheckIn ? todayCheckIn.mood || "No data" : "No data yet"}
           subtitle={todayCheckIn ? "Updated today" : "+ Add your mood"}
           icon={getMoodData(todayCheckIn?.mood).icon}
           iconBg={getMoodData(todayCheckIn?.mood).bg}
@@ -337,15 +363,17 @@ export default function Dashboard() {
             
             <div className="bg-green-50/50 dark:bg-green-900/10 rounded-xl p-5 border border-green-100 dark:border-green-900/30 flex gap-4 min-h-[140px] items-center relative overflow-hidden group">
               <span className="text-green-600 dark:text-green-400 text-3xl shrink-0 transition-transform duration-300 group-hover:scale-110">
-                {relevantTips.length > 0 && relevantTips[currentTipIndex]?.icon ? relevantTips[currentTipIndex].icon : "💡"}
+                {currentTip?.icon || "💡"}
               </span>
               
               <div className="flex-1">
-                {relevantTips.length > 0 ? (
+                {relevantTips.length > 0 && currentTip ? (
                   <div key={currentTipIndex} className="animate-pulse-once">
-                    <h4 className="font-bold text-slate-800 dark:text-slate-100 text-base mb-1.5">{relevantTips[currentTipIndex].title}</h4>
+                    <h4 className="font-bold text-slate-800 dark:text-slate-100 text-base mb-1.5">
+                      {currentTip.title}
+                    </h4>
                     <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed font-medium">
-                      {relevantTips[currentTipIndex].content || relevantTips[currentTipIndex].description}
+                      {currentTip.content || currentTip.description}
                     </p>
                   </div>
                 ) : (

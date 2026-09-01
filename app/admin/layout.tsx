@@ -6,8 +6,16 @@ import { useAuth } from "../../context/AuthContext";
 import { auth, db } from "../../lib/firebase"; 
 import { signOut } from "firebase/auth";
 import { useState, useEffect, useRef } from "react";
-import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { collection, query, orderBy, limit, onSnapshot, Timestamp } from "firebase/firestore";
 import ThemeToggle from "../components/ThemeToggle"; 
+
+interface ActivityLog {
+  id: string;
+  action?: string;
+  details?: string;
+  userName?: string;
+  createdAt?: Timestamp | string | number;
+}
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -15,7 +23,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
 
   // Notification States
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<ActivityLog[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -23,12 +31,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Ref for notification dropdown to handle outside click
   const notifRef = useRef<HTMLDivElement>(null);
 
-  // ১. সাইডবারের কোনো লিংকে ক্লিক করে রাউট চেঞ্জ হলেই নোটিফিকেশন ড্রপডাউন বন্ধ হয়ে যাবে
+  // Close notification dropdown when route changes
   useEffect(() => {
     setShowNotifications(false);
   }, [pathname]);
 
-  // ২. স্ক্রিনের বাইরের যেকোনো খালি জায়গায় ক্লিক করলে নোটিফিকেশন ড্রপডাউন বন্ধ হয়ে যাবে
+  // Close notification dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
@@ -42,24 +50,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     };
   }, []);
 
-  // ফায়ারবেস থেকে লাইভ নোটিফিকেশন বা অ্যাক্টিভিটি লগ ফেচ করা
+  // Real-time Firestore notification listener
   useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const q = query(collection(db, "activityLogs"), orderBy("createdAt", "desc"), limit(5));
-        const snap = await getDocs(q);
-        const list: any[] = [];
-        snap.forEach((doc) => {
-          list.push({ id: doc.id, ...doc.data() });
-        });
+    const q = query(collection(db, "activityLogs"), orderBy("createdAt", "desc"), limit(5));
+    
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const list: ActivityLog[] = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
         setNotifications(list);
         setUnreadCount(list.length);
-      } catch (error) {
+      },
+      (error) => {
         console.error("Error fetching notifications:", error);
       }
-    };
+    );
 
-    fetchNotifications();
+    return () => unsubscribe();
   }, []);
 
   const handleLogout = async () => {
@@ -69,6 +79,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     } catch (error) {
       console.error("Logout Error:", error);
     }
+  };
+
+  const formatNotificationTime = (dateVal?: Timestamp | string | number) => {
+    if (!dateVal) return "";
+    let date: Date;
+    if (typeof (dateVal as Timestamp)?.toDate === "function") {
+      date = (dateVal as Timestamp).toDate();
+    } else {
+      date = new Date(dateVal as string | number);
+    }
+    return isNaN(date.getTime())
+      ? ""
+      : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
   const menuItems = [
@@ -105,7 +128,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="flex items-center gap-3">
               <span className="text-3xl drop-shadow-md">🧠</span>
               <div>
-                <h1 className="text-xl font-bold text-slate-900 dark:white tracking-wide">MindPulse</h1>
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-wide">MindPulse</h1>
                 <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-widest">Admin Panel</span>
               </div>
             </div>
@@ -182,7 +205,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {/* Theme Toggle */}
             <ThemeToggle />
 
-            {/* Notification Bell with Functional Dropdown (notifRef যুক্ত করা হয়েছে) */}
+            {/* Notification Bell */}
             <div className="relative" ref={notifRef}>
               <button 
                 onClick={() => {
@@ -217,7 +240,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                           <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{notif.action || "System Event"}</p>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{notif.details || notif.userName}</p>
                           <span className="text-[9px] text-slate-400 dark:text-slate-500 mt-1 block">
-                            {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {formatNotificationTime(notif.createdAt)}
                           </span>
                         </div>
                       ))
@@ -244,7 +267,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </header>
 
-        {/* Page Children go here */}
+        {/* Page Children */}
         <main className="flex-1 overflow-y-auto bg-[#f8fafc] dark:bg-slate-950 p-4 md:p-6 transition-colors duration-200">
           {children}
         </main>

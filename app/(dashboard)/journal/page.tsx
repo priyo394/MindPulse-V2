@@ -58,23 +58,37 @@ export default function JournalPage() {
     }
   }, [user, authLoading, router]);
 
+  // জার্নাল সাবমিট এবং অ্যাডমিন লগ তৈরি করার ফাংশন
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
     if (!user) {
-      // if user unexpectedly null, redirect to login
       router.push("/login");
       return;
     }
     
     setSubmitting(true);
     try {
+      // ১. জার্নালটি ডাটাবেসে সেভ করা
       await addDoc(collection(db, "journals"), {
         userId: user.uid,
         title,
         content,
         createdAt: new Date()
       });
+
+      // ২. অ্যাডমিন নোটিফিকেশন ও লগসের জন্য Activity Log তৈরি করা
+      const userIdentifier = user.displayName || user.email?.split("@")[0] || "A User"; 
+
+      await addDoc(collection(db, "activityLogs"), {
+        userName: userIdentifier,
+        action: "Published a new journal entry",
+        details: `Title: "${title}"`,
+        type: "success",
+        createdAt: new Date()
+      });
+
+      // ফর্ম রিসেট করা
       setTitle("");
       setContent("");
     } catch (error) {
@@ -82,6 +96,22 @@ export default function JournalPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // ডেট ফরম্যাট করার জন্য নিরাপদ ফাংশন
+  const formatJournalDate = (createdAt: any) => {
+    if (!createdAt) return "Unknown Date";
+    
+    if (typeof createdAt.toDate === 'function') {
+      return createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    
+    const parsed = new Date(createdAt);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    
+    return "Invalid Date";
   };
 
   if (authLoading || settingsLoading) {
@@ -206,7 +236,7 @@ export default function JournalPage() {
                       <h3 className="font-bold text-lg md:text-xl text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{journal.title}</h3>
                       <span className="shrink-0 text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 flex items-center gap-1.5 transition-colors">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                        {journal.createdAt?.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {formatJournalDate(journal.createdAt)}
                       </span>
                     </div>
                     <p className="text-slate-600 dark:text-slate-300 text-sm md:text-base leading-relaxed whitespace-pre-wrap font-medium">
