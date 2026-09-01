@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 import { auth, db } from "../../lib/firebase"; 
 import { signOut } from "firebase/auth";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import ThemeToggle from "../components/ThemeToggle"; 
 
@@ -19,6 +19,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Ref for notification dropdown to handle outside click
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  // ১. সাইডবারের কোনো লিংকে ক্লিক করে রাউট চেঞ্জ হলেই নোটিফিকেশন ড্রপডাউন বন্ধ হয়ে যাবে
+  useEffect(() => {
+    setShowNotifications(false);
+  }, [pathname]);
+
+  // ২. স্ক্রিনের বাইরের যেকোনো খালি জায়গায় ক্লিক করলে নোটিফিকেশন ড্রপডাউন বন্ধ হয়ে যাবে
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // ফায়ারবেস থেকে লাইভ নোটিফিকেশন বা অ্যাক্টিভিটি লগ ফেচ করা
   useEffect(() => {
@@ -72,7 +94,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         ></div>
       )}
 
-      {/* Sidebar - Desktop & Mobile Drawer (LIGHT MODE WHITE & DARK MOIDE SLATE-900) */}
+      {/* Sidebar - Desktop & Mobile Drawer */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 flex flex-col justify-between shadow-2xl transition-transform duration-300 ease-in-out md:translate-x-0 md:sticky md:top-0 ${
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       }`}>
@@ -83,7 +105,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="flex items-center gap-3">
               <span className="text-3xl drop-shadow-md">🧠</span>
               <div>
-                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-wide">MindPulse</h1>
+                <h1 className="text-xl font-bold text-slate-900 dark:white tracking-wide">MindPulse</h1>
                 <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-widest">Admin Panel</span>
               </div>
             </div>
@@ -160,8 +182,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {/* Theme Toggle */}
             <ThemeToggle />
 
-            {/* Notification Bell with Functional Dropdown */}
-            <div className="relative">
+            {/* Notification Bell with Functional Dropdown (notifRef যুক্ত করা হয়েছে) */}
+            <div className="relative" ref={notifRef}>
               <button 
                 onClick={() => {
                   setShowNotifications(!showNotifications);
